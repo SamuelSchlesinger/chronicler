@@ -1,6 +1,8 @@
-# Agentic Framework Redesign: D&D Dungeon Master
+# Architecture
 
-A ground-up redesign optimized for AI-driven D&D gameplay with long campaigns, multi-interface support, and programmatic testability.
+This document describes the architecture of the agentic workspace, focused on AI-driven D&D gameplay with long campaigns, multi-interface support, and programmatic testability.
+
+> For historical context on the original framework design, see `docs/archive/FRAMEWORK_DESIGN.md`.
 
 ## Design Constraints
 

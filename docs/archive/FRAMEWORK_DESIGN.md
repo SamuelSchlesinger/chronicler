@@ -1,4 +1,8 @@
-# Agentic Framework Design
+# Agentic Framework Design (Historical)
+
+> **Note**: This document describes the original ambitious framework design from early development.
+> The project was later refocused on a D&D Dungeon Master application. See `/ARCHITECTURE.md` for
+> the current design.
 
 ## Executive Summary
 

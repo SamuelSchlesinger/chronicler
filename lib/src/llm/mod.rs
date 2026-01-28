@@ -135,7 +135,10 @@ pub enum ToolChoice {
     /// Model must use a tool
     Any,
     /// Model must use a specific tool
-    Tool { name: String },
+    Tool {
+        /// Name of the tool to use
+        name: String,
+    },
     /// Model should not use tools
     None,
 }
@@ -195,26 +198,35 @@ impl TokenUsage {
 pub enum StreamEvent {
     /// Message started
     MessageStart {
+        /// Unique message identifier
         message_id: String,
+        /// Model being used
         model: String,
     },
     /// Content block started
     ContentBlockStart {
+        /// Block index in the response
         index: usize,
+        /// Type of content (e.g., "text", "tool_use")
         content_type: String,
     },
     /// Text delta
     ContentBlockDelta {
+        /// Block index this delta applies to
         index: usize,
+        /// The content delta
         delta: ContentDelta,
     },
     /// Content block finished
     ContentBlockStop {
+        /// Block index that finished
         index: usize,
     },
     /// Message finished
     MessageDelta {
+        /// Reason generation stopped
         stop_reason: Option<StopReason>,
+        /// Final token usage statistics
         usage: Option<TokenUsage>,
     },
     /// Message complete
@@ -223,6 +235,7 @@ pub enum StreamEvent {
     Ping,
     /// Error occurred
     Error {
+        /// Error message
         message: String,
     },
 }
@@ -232,11 +245,20 @@ pub enum StreamEvent {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContentDelta {
     /// Text delta
-    TextDelta { text: String },
+    TextDelta {
+        /// The text fragment
+        text: String,
+    },
     /// Tool input delta (JSON string)
-    InputJsonDelta { partial_json: String },
+    InputJsonDelta {
+        /// Partial JSON string for tool input
+        partial_json: String,
+    },
     /// Thinking delta
-    ThinkingDelta { thinking: String },
+    ThinkingDelta {
+        /// The thinking text fragment
+        thinking: String,
+    },
 }
 
 #[cfg(test)]

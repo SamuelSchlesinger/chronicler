@@ -346,7 +346,12 @@ pub enum SkillImplementation {
     /// A sequence of tool calls
     ToolSequence(Vec<ToolStep>),
     /// Executable code
-    Code { language: String, code: String },
+    Code {
+        /// Programming language
+        language: String,
+        /// The code to execute
+        code: String,
+    },
     /// Composed of other skills
     Composite(Vec<SkillId>),
 }

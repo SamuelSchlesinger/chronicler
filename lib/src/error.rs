@@ -1,6 +1,9 @@
 //! Error types for the agentic framework.
 //!
 //! Uses thiserror for ergonomic error definition.
+//! Error variant fields are documented via the `#[error("...")]` messages.
+
+#![allow(missing_docs)]
 
 use crate::id::{ActionId, AgentId, GoalId, MemoryId, PlanId, ToolCallId};
 

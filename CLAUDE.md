@@ -29,51 +29,132 @@ cargo run --example simple_chat
 cargo run --example tool_agent
 
 # Run the D&D game (requires ANTHROPIC_API_KEY in .env)
-cargo run --bin dnd_game
+cargo run -p dnd
+
+# Run D&D in headless mode
+cargo run -p dnd -- --headless --name "Thorin" --class fighter --race dwarf
 ```
 
-## Architecture Overview
+## Workspace Structure
 
-This is an AI agent framework in Rust with two workspace members:
+This workspace contains 6 crates:
 
-- **`lib/`** - Core `agentic` crate with traits and types
-- **`agents/`** - Example agents using the framework
+| Crate | Path | Description |
+|-------|------|-------------|
+| `agentic` | `lib/` | Core framework with Agent, Tool, Memory, Safety traits |
+| `claude` | `claude/` | Minimal Anthropic Claude API client |
+| `dnd-macros` | `dnd-macros/` | Procedural macros for tool definitions |
+| `dnd-core` | `dnd-core/` | D&D 5e game engine with AI Dungeon Master |
+| `dnd` | `dnd/` | Terminal UI application for D&D |
+| `agents` | `agents/` | Example agents and historical research |
 
-### Core Library Structure (`lib/src/`)
+## Core Library (`lib/src/`)
 
-The framework follows a trait-based design with these key modules:
+The `agentic` crate provides a trait-based framework for building AI agents:
 
 | Module | Purpose |
 |--------|---------|
 | `agent.rs` | `Agent` trait - central abstraction for processing messages |
 | `tool.rs` | `Tool` trait with `ToolRegistry` for executable functions |
-| `memory.rs` | Three memory types: `EpisodicMemory`, `SemanticMemory`, `ProceduralMemory` |
-| `safety.rs` | `SafetyValidator`, `Guardrail`, `ApprovalWorkflow` traits with `SafetyPipeline` |
-| `context.rs` | `ContextManager`, `Retriever`, `StatePersistence` for context window management |
-| `llm/` | LLM providers - currently `AnthropicProvider` with streaming support |
-| `id.rs` | Type-safe ID newtypes (AgentId, ToolId, MessageId, etc.) using UUID |
-| `message.rs` | Message types with ContentBlock variants (Text, Image, ToolUse, ToolResult, Thinking) |
-| `action.rs` | Action types for the safety validation pipeline |
+| `memory.rs` | `EpisodicMemory`, `SemanticMemory`, `ProceduralMemory` traits |
+| `safety.rs` | `SafetyValidator`, `Guardrail`, `ApprovalWorkflow` traits |
+| `context.rs` | `ContextManager`, `Retriever`, `StatePersistence` traits |
+| `llm/` | LLM providers - `AnthropicProvider` with streaming support |
+| `id.rs` | Type-safe ID newtypes (AgentId, ToolId, MessageId, etc.) |
+| `message.rs` | Message types with ContentBlock variants |
+| `action.rs` | Action types for safety validation |
 | `error.rs` | Error types using thiserror |
 
 ### Key Design Patterns
 
-1. **Type-safe IDs**: All IDs are newtypes around UUID to prevent mixing different ID types at compile time
-2. **Async traits**: All major traits use `#[async_trait]` for async operations
-3. **Builder pattern**: Configuration uses builder pattern (e.g., `CompletionRequest::new().with_system().with_messages()`)
-4. **Content blocks**: Messages use `Vec<ContentBlock>` to support mixed content (text, images, tool calls)
+1. **Type-safe IDs**: All IDs are newtypes around UUID
+2. **Async traits**: All major traits use `#[async_trait]`
+3. **Builder pattern**: Configuration uses builder pattern
+4. **Content blocks**: Messages use `Vec<ContentBlock>` for mixed content
 
-### LLM Integration Flow
+## Claude API Client (`claude/src/`)
 
-The Anthropic provider in `llm/anthropic.rs` handles:
-- Converting internal `Message` types to API format
-- Tool definitions with JSON schemas
-- Streaming via SSE parsing
-- Tool use loop (stop_reason == ToolUse triggers tool execution)
+A minimal, focused Anthropic Claude API client:
 
-### Adding a New Tool
+```rust
+use claude::{Claude, Request, Message};
 
-Implement the `Tool` trait:
+let client = Claude::from_env()?;
+let response = client.complete(
+    Request::new(vec![Message::user("Hello")])
+        .with_system("You are helpful.")
+).await?;
+```
+
+Features:
+- Non-streaming and streaming completions
+- Tool use with automatic execution loop
+- SSE parsing for streaming responses
+
+## D&D Game Engine (`dnd-core/src/`)
+
+The D&D 5e game engine provides:
+
+| Module | Purpose |
+|--------|---------|
+| `session.rs` | `GameSession` - main public API |
+| `rules.rs` | D&D 5e rules engine |
+| `world.rs` | Game state, characters, locations |
+| `dice.rs` | Dice notation parser (2d6+3, 4d6kh3, advantage) |
+| `character_builder.rs` | Character creation |
+| `persist.rs` | Save/load campaigns |
+| `dm/` | AI Dungeon Master implementation |
+
+### AI Dungeon Master (`dnd-core/src/dm/`)
+
+```
+dm/
+├── agent.rs          # Main DM agent with tool execution
+├── tools.rs          # D&D tools (dice, skill checks, etc.)
+├── memory.rs         # Context management and summarization
+├── prompts/          # System prompt templates (.txt files)
+└── story_memory/     # Fact, entity, and relationship tracking
+```
+
+## D&D TUI (`dnd/src/`)
+
+Vim-style terminal interface using ratatui:
+
+| Module | Purpose |
+|--------|---------|
+| `main.rs` | Application entry point |
+| `app.rs` | Application state, input modes |
+| `events.rs` | Event handling |
+| `character_creation.rs` | Character creation wizard |
+| `ui/` | Rendering, layout, widgets |
+
+### Input Modes
+
+- **NORMAL**: Navigation (`j`/`k`), mode switching (`i`, `:`), hotkeys (`?` help)
+- **INSERT**: Text input, `Esc` to return, `Enter` to send
+- **COMMAND**: `:q` quit, `:w` save, `:e <file>` load
+
+## Adding a New Tool
+
+### Using the derive macro (recommended for D&D tools):
+
+```rust
+use dnd_macros::Tool;
+use serde::Deserialize;
+
+/// Roll dice using D&D notation
+#[derive(Tool, Deserialize)]
+#[tool(name = "roll_dice")]
+struct RollDice {
+    /// Dice notation like "2d6+3"
+    notation: String,
+    /// Optional purpose for the roll
+    purpose: Option<String>,
+}
+```
+
+### Using the trait directly:
+
 ```rust
 #[async_trait]
 impl Tool for MyTool {
@@ -86,9 +167,9 @@ impl Tool for MyTool {
 }
 ```
 
-## Research Reports
+## Historical Research
 
-The `agents/research/` directory contains detailed research reports on:
+The `agents/research/` directory contains design research reports used during initial framework development:
 - Planning (HTN, GOAP, Tree-of-Thought)
 - Memory systems (episodic, semantic, procedural)
 - Safety and security patterns
@@ -96,50 +177,4 @@ The `agents/research/` directory contains detailed research reports on:
 - Multi-agent coordination
 - Industry survey (Anthropic MCP, OpenAI, Google, LangChain)
 
-See `FRAMEWORK_DESIGN.md` for the full architectural vision synthesized from this research.
-
-## D&D Dungeon Master Agent (`agents/src/dnd/`)
-
-A comprehensive single-player D&D 5e experience with an AI Dungeon Master and TUI interface.
-
-### Module Structure
-
-```
-agents/src/dnd/
-├── mod.rs              # Module root
-├── app.rs              # Application state, InputMode (vim-style)
-├── events.rs           # Event handling for all input modes
-├── game/               # D&D 5e game mechanics
-│   ├── dice.rs         # Dice notation parser (2d6+3, 4d6kh3, advantage)
-│   ├── character.rs    # Full character sheets, abilities, spells
-│   ├── combat.rs       # Initiative tracking, turn management
-│   ├── state.rs        # GameWorld, locations, quests, NPCs
-│   ├── conditions.rs   # All 14 PHB conditions
-│   └── skills.rs       # 18 skills with ability mappings
-├── ui/                 # TUI with ratatui
-│   ├── render.rs       # Main render orchestration
-│   ├── layout.rs       # Exploration and combat layouts
-│   ├── theme.rs        # Color schemes
-│   └── widgets/        # NarrativeWidget, CombatTracker, DiceRoll, etc.
-└── ai/                 # AI agents
-    ├── dm_agent.rs     # Main DM agent with tool execution
-    ├── tools.rs        # D&D tools (RollDice, SkillCheck, etc.)
-    ├── prompts.rs      # System prompt builder
-    └── subagents/      # Specialized agents (Combat, NPC, Rules)
-```
-
-### Vim-Style Input Modes
-
-The TUI uses vim-style modal input:
-
-- **NORMAL** (default): Navigation (`j`/`k`), hotkeys (`?` help, `r` rest), mode switching (`i`, `:`)
-- **INSERT**: Free text input, `Esc` to return to normal, `Enter` to send
-- **COMMAND**: `:q` quit, `:roll XdY` roll dice, `:rest` take rest
-
-### Key Features
-
-- Full D&D 5e dice notation with advantage/disadvantage
-- Complete character sheets with spells, conditions, inventory
-- Combat tracking with initiative and turn management
-- Recursive subagent architecture for context-efficient AI responses
-- Streaming narrative display with animated dice rolls
+See `ARCHITECTURE.md` for the current design documentation.

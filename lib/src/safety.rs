@@ -172,9 +172,15 @@ pub enum GuardrailResult {
     /// Guardrail passed
     Pass,
     /// Guardrail failed
-    Fail { reason: String },
+    Fail {
+        /// Why the guardrail failed
+        reason: String,
+    },
     /// Guardrail triggered a warning but allows proceeding
-    Warn { reason: String },
+    Warn {
+        /// Warning message
+        reason: String,
+    },
 }
 
 impl GuardrailResult {
