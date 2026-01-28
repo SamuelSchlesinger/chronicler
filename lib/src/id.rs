@@ -173,7 +173,7 @@ mod tests {
     #[test]
     fn test_id_debug_format() {
         let id = AgentId::nil();
-        let debug = format!("{:?}", id);
+        let debug = format!("{id:?}");
         assert!(debug.starts_with("AgentId("));
     }
 

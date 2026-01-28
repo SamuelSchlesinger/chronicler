@@ -390,7 +390,7 @@ mod tests {
         }
 
         async fn execute(&self, params: Value, _context: &ToolContext) -> Result<ToolOutput, ToolError> {
-            Ok(ToolOutput::text(format!("Executed with: {}", params)))
+            Ok(ToolOutput::text(format!("Executed with: {params}")))
         }
     }
 

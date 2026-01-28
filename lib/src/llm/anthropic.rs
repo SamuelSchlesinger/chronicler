@@ -59,7 +59,7 @@ impl AnthropicProvider {
         headers.insert(
             "x-api-key",
             HeaderValue::from_str(&self.api_key)
-                .map_err(|e| LlmError::Configuration(format!("Invalid API key: {}", e)))?,
+                .map_err(|e| LlmError::Configuration(format!("Invalid API key: {e}")))?,
         );
         headers.insert(
             "anthropic-version",
@@ -161,7 +161,7 @@ impl LlmProvider for AnthropicProvider {
 
         let response = self
             .client
-            .post(format!("{}/messages", API_BASE))
+            .post(format!("{API_BASE}/messages"))
             .headers(headers)
             .json(&api_request)
             .send()
@@ -195,7 +195,7 @@ impl LlmProvider for AnthropicProvider {
 
         let response = self
             .client
-            .post(format!("{}/messages", API_BASE))
+            .post(format!("{API_BASE}/messages"))
             .headers(headers)
             .json(&api_request)
             .send()
@@ -247,14 +247,13 @@ impl LlmProvider for AnthropicProvider {
 fn parse_sse_event(text: &str) -> Result<StreamEvent, LlmError> {
     // SSE format: event: <type>\ndata: <json>\n\n
     for line in text.lines() {
-        if line.starts_with("data: ") {
-            let json_str = &line[6..];
+        if let Some(json_str) = line.strip_prefix("data: ") {
             if json_str == "[DONE]" {
                 return Ok(StreamEvent::MessageStop);
             }
 
             let event: ApiStreamEvent = serde_json::from_str(json_str)
-                .map_err(|e| LlmError::Parse(format!("Failed to parse SSE: {}", e)))?;
+                .map_err(|e| LlmError::Parse(format!("Failed to parse SSE: {e}")))?;
 
             return Ok(match event {
                 ApiStreamEvent::MessageStart { message } => StreamEvent::MessageStart {

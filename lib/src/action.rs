@@ -235,16 +235,16 @@ impl Action {
     /// Get a description of this action for logging
     pub fn description(&self) -> String {
         match &self.action_type {
-            ActionType::ToolCall { tool_name, .. } => format!("tool_call:{}", tool_name),
+            ActionType::ToolCall { tool_name, .. } => format!("tool_call:{tool_name}"),
             ActionType::Message { recipient } => match recipient {
-                Some(id) => format!("message:agent:{}", id),
+                Some(id) => format!("message:agent:{id}"),
                 None => "message:user".to_string(),
             },
-            ActionType::StateChange { change_type } => format!("state_change:{}", change_type),
+            ActionType::StateChange { change_type } => format!("state_change:{change_type}"),
             ActionType::External { target, method } => {
                 format!("external:{}:{}", method.as_deref().unwrap_or("GET"), target)
             }
-            ActionType::FileSystem { operation, path } => format!("file:{:?}:{}", operation, path),
+            ActionType::FileSystem { operation, path } => format!("file:{operation:?}:{path}"),
             ActionType::Shell { command, .. } => format!("shell:{}", &command[..command.len().min(50)]),
         }
     }
@@ -253,10 +253,12 @@ impl Action {
 /// Priority level for actions
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum Priority {
     /// Lowest priority
     Low,
     /// Normal priority (default)
+    #[default]
     Normal,
     /// High priority
     High,
@@ -264,11 +266,6 @@ pub enum Priority {
     Critical,
 }
 
-impl Default for Priority {
-    fn default() -> Self {
-        Priority::Normal
-    }
-}
 
 impl fmt::Display for Priority {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
