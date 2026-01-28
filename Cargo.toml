@@ -1,3 +1,3 @@
 [workspace]
-members = ["lib", "agents"]
+members = ["lib", "agents", "claude", "dnd-macros", "dnd-core", "dnd"]
 resolver = "2"

@@ -148,6 +148,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "claude"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tokio-stream",
+]
+
+[[package]]
 name = "compact_str"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -241,6 +254,40 @@ name = "displaydoc"
 version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "97369cbbc041bc366949bc74d34658d6cda5621039731c6310521892a3a20ae0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "dnd"
+version = "0.1.0"
+dependencies = [
+ "crossterm",
+ "dnd-core",
+ "dotenvy",
+ "ratatui",
+ "tokio",
+]
+
+[[package]]
+name = "dnd-core"
+version = "0.1.0"
+dependencies = [
+ "claude",
+ "dnd-macros",
+ "rand",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "dnd-macros"
+version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
