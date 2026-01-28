@@ -22,7 +22,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let provider = match AnthropicProvider::from_env() {
         Ok(p) => p,
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("Error: {e}");
             eprintln!("Please set ANTHROPIC_API_KEY in .env file");
             std::process::exit(1);
         }
@@ -66,7 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         match provider.complete(request).await {
             Ok(response) => {
                 let assistant_text = response.message.text_content();
-                println!("\nAssistant: {}\n", assistant_text);
+                println!("\nAssistant: {assistant_text}\n");
 
                 // Add assistant message to history
                 messages.push(response.message);
@@ -78,7 +78,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
             }
             Err(e) => {
-                eprintln!("\nError: {}\n", e);
+                eprintln!("\nError: {e}\n");
             }
         }
     }

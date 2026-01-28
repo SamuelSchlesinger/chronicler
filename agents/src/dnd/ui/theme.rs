@@ -164,7 +164,8 @@ impl GameTheme {
 
         let style = Style::default().fg(color);
         if is_current {
-            style.add_modifier(Modifier::BOLD | Modifier::REVERSED)
+            // Use bold and underline instead of reversed for better readability
+            style.add_modifier(Modifier::BOLD | Modifier::UNDERLINED)
         } else {
             style
         }

@@ -3,7 +3,7 @@
 //! Complete character sheets with all stats, features, and equipment.
 
 use super::conditions::ActiveCondition;
-use super::dice::{DiceExpression, DieType, RollResult};
+use super::dice::DieType;
 use super::skills::{ProficiencyLevel, Skill};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -572,7 +572,7 @@ impl SpellSlots {
     }
 
     pub fn get(&self, level: u8) -> Option<&SlotInfo> {
-        if level >= 1 && level <= 9 {
+        if (1..=9).contains(&level) {
             Some(&self.slots[level as usize - 1])
         } else {
             None
@@ -580,7 +580,7 @@ impl SpellSlots {
     }
 
     pub fn get_mut(&mut self, level: u8) -> Option<&mut SlotInfo> {
-        if level >= 1 && level <= 9 {
+        if (1..=9).contains(&level) {
             Some(&mut self.slots[level as usize - 1])
         } else {
             None
@@ -739,7 +739,7 @@ impl fmt::Display for Alignment {
             Alignment::NeutralEvil => "Neutral Evil",
             Alignment::ChaoticEvil => "Chaotic Evil",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 

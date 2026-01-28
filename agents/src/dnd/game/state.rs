@@ -26,8 +26,10 @@ impl Default for LocationId {
 
 /// Current game mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Default)]
 pub enum GameMode {
     /// Exploring, investigating, traveling
+    #[default]
     Exploration,
     /// Active combat encounter
     Combat,
@@ -41,11 +43,6 @@ pub enum GameMode {
     CharacterManagement,
 }
 
-impl Default for GameMode {
-    fn default() -> Self {
-        GameMode::Exploration
-    }
-}
 
 /// In-game time tracking
 #[derive(Debug, Clone, Serialize, Deserialize)]

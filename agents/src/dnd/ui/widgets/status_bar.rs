@@ -20,6 +20,8 @@ pub struct StatusBarWidget<'a> {
     input_mode: InputMode,
     theme: &'a GameTheme,
     message: Option<&'a str>,
+    ai_processing: bool,
+    animation_frame: u8,
 }
 
 impl<'a> StatusBarWidget<'a> {
@@ -30,11 +32,19 @@ impl<'a> StatusBarWidget<'a> {
             input_mode,
             theme,
             message: None,
+            ai_processing: false,
+            animation_frame: 0,
         }
     }
 
     pub fn message(mut self, message: Option<&'a str>) -> Self {
         self.message = message;
+        self
+    }
+
+    pub fn ai_processing(mut self, processing: bool, frame: u8) -> Self {
+        self.ai_processing = processing;
+        self.animation_frame = frame;
         self
     }
 }
@@ -81,17 +91,26 @@ impl Widget for StatusBarWidget<'_> {
         };
 
         let mut spans = vec![
-            Span::styled(format!("-- {} --", input_mode_text), input_mode_style),
+            Span::styled(format!("-- {input_mode_text} --"), input_mode_style),
             Span::raw(" | "),
             Span::styled(hp_text, Style::default().fg(hp_color)),
             Span::raw(" | "),
-            Span::styled(format!("AC: {}", ac), Style::default()),
+            Span::styled(format!("AC: {ac}"), Style::default()),
             Span::raw(" | "),
             Span::styled(game_mode_text, game_mode_style),
         ];
 
-        // Add message if present
-        if let Some(msg) = self.message {
+        // Add AI processing indicator
+        if self.ai_processing {
+            let spinner_chars = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+            let spinner = spinner_chars[(self.animation_frame as usize / 2) % spinner_chars.len()];
+            spans.push(Span::raw(" | "));
+            spans.push(Span::styled(
+                format!("{spinner} DM thinking..."),
+                Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
+            ));
+        } else if let Some(msg) = self.message {
+            // Add message if present (only when not processing)
             spans.push(Span::raw(" | "));
             spans.push(Span::styled(
                 msg,
@@ -109,12 +128,12 @@ impl Widget for StatusBarWidget<'_> {
 pub struct HotkeyBarWidget<'a> {
     game_mode: GameMode,
     input_mode: InputMode,
-    theme: &'a GameTheme,
+    _theme: &'a GameTheme, // Reserved for future themed hotkey styling
 }
 
 impl<'a> HotkeyBarWidget<'a> {
     pub fn new(game_mode: GameMode, input_mode: InputMode, theme: &'a GameTheme) -> Self {
-        Self { game_mode, input_mode, theme }
+        Self { game_mode, input_mode, _theme: theme }
     }
 }
 

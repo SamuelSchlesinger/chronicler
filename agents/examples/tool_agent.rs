@@ -93,13 +93,13 @@ impl Tool for CalculatorTool {
             _ => {
                 return Err(ToolError::InvalidParameters {
                     tool: "calculator".to_string(),
-                    reason: format!("Unknown operation: {}", operation),
+                    reason: format!("Unknown operation: {operation}"),
                 });
             }
         };
 
         Ok(ToolOutput::structured(
-            format!("{}", result),
+            format!("{result}"),
             json!({ "result": result }),
         ))
     }
@@ -167,7 +167,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let provider = match AnthropicProvider::from_env() {
         Ok(p) => p,
         Err(e) => {
-            eprintln!("Error: {}", e);
+            eprintln!("Error: {e}");
             eprintln!("Please set ANTHROPIC_API_KEY in .env file");
             std::process::exit(1);
         }
@@ -226,7 +226,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let response = match provider.complete(request).await {
                 Ok(r) => r,
                 Err(e) => {
-                    eprintln!("\nError: {}\n", e);
+                    eprintln!("\nError: {e}\n");
                     break;
                 }
             };
@@ -243,7 +243,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let mut tool_results: Vec<ContentBlock> = Vec::new();
 
                 for (tool_id, tool_name, input) in tool_uses {
-                    println!("\n[Using tool: {} with {:?}]", tool_name, input);
+                    println!("\n[Using tool: {tool_name} with {input:?}]");
 
                     let result = match tool_name {
                         "calculator" => {
@@ -256,7 +256,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 .execute(input.clone(), &ToolContext::default())
                                 .await
                         }
-                        _ => Ok(ToolOutput::error(format!("Unknown tool: {}", tool_name))),
+                        _ => Ok(ToolOutput::error(format!("Unknown tool: {tool_name}"))),
                     };
 
                     let (content, is_error) = match result {
@@ -264,10 +264,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             let is_err = output.is_error();
                             (output.content, is_err)
                         }
-                        Err(e) => (format!("Error: {}", e), true),
+                        Err(e) => (format!("Error: {e}"), true),
                     };
 
-                    println!("[Tool result: {}]", content);
+                    println!("[Tool result: {content}]");
 
                     tool_results.push(ContentBlock::ToolResult {
                         tool_use_id: *tool_id,
@@ -281,7 +281,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 // No tool use, print the response
                 let assistant_text = response.message.text_content();
-                println!("\nAssistant: {}\n", assistant_text);
+                println!("\nAssistant: {assistant_text}\n");
 
                 // Add assistant message to history
                 messages.push(response.message);

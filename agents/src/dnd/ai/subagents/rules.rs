@@ -66,7 +66,7 @@ impl Agent for RulesAgent {
         &[]
     }
 
-    async fn process(&self, message: Message, context: &mut Context) -> Result<Response, AgentError> {
+    async fn process(&self, message: Message, _context: &mut Context) -> Result<Response, AgentError> {
         let input = message.text_content();
 
         // This would:
@@ -74,7 +74,7 @@ impl Agent for RulesAgent {
         // 2. Find relevant rules text
         // 3. Provide authoritative answer
 
-        Ok(Response::text(format!("[Rules] Looking up: {}", input)))
+        Ok(Response::text(format!("[Rules] Looking up: {input}")))
     }
 
     async fn initialize(&mut self) -> Result<(), AgentError> {

@@ -84,12 +84,11 @@ impl Widget for DiceRollWidget<'_> {
         match &self.animation_state {
             DiceAnimationState::Rolling { frame } => {
                 // Show rolling animation
-                let frames = ["  ╭───╮", "  │ ? │", "  ╰───╯"];
                 let spin_chars = ['|', '/', '-', '\\'];
                 let spin = spin_chars[(*frame as usize) % 4];
 
                 lines.push(Line::from("  ╭───╮"));
-                lines.push(Line::from(format!("  │ {} │", spin)));
+                lines.push(Line::from(format!("  │ {spin} │")));
                 lines.push(Line::from("  ╰───╯"));
                 lines.push(Line::from(""));
                 lines.push(Line::from(Span::styled(
@@ -175,7 +174,7 @@ impl Widget for DiceRollWidget<'_> {
                         };
 
                         lines.push(Line::from(vec![
-                            Span::raw(format!("vs DC {} - ", dc)),
+                            Span::raw(format!("vs DC {dc} - ")),
                             outcome,
                         ]));
                     }

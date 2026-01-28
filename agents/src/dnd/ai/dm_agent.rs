@@ -3,7 +3,6 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use serde_json::json;
 
 use agentic::agent::{Agent, AgentMetadata, Capabilities, Context, Response};
 use agentic::error::{AgentError, ToolError};
@@ -128,7 +127,7 @@ impl DungeonMasterAgent {
 
                     let (content, is_error) = match &result {
                         Ok(output) => (output.content.clone(), output.is_error()),
-                        Err(e) => (format!("Error: {}", e), true),
+                        Err(e) => (format!("Error: {e}"), true),
                     };
 
                     all_tool_calls.push(ToolCallResult {
@@ -193,7 +192,7 @@ impl Agent for DungeonMasterAgent {
         &[]
     }
 
-    async fn process(&self, message: Message, context: &mut Context) -> Result<Response, AgentError> {
+    async fn process(&self, message: Message, _context: &mut Context) -> Result<Response, AgentError> {
         // This would integrate with the full context management
         // For now, create a simple response
         let response_text = format!("Received: {}", message.text_content());

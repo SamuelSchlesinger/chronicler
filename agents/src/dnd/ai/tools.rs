@@ -287,9 +287,9 @@ impl Tool for SkillCheckTool {
 
         let (total, roll_display) = if passive {
             let passive_total = 10 + modifier;
-            (passive_total, format!("10 + {} = {}", modifier, passive_total))
+            (passive_total, format!("10 + {modifier} = {passive_total}"))
         } else {
-            let expression = format!("1d20+{}", modifier);
+            let expression = format!("1d20+{modifier}");
             let result = roll_with_advantage(&expression, advantage).map_err(|e| {
                 ToolError::ExecutionFailed {
                     tool_call_id: ToolCallId::new(),
@@ -361,7 +361,7 @@ impl Tool for SavingThrowTool {
 
         // Placeholder modifier
         let modifier = 2;
-        let expression = format!("1d20+{}", modifier);
+        let expression = format!("1d20+{modifier}");
 
         let result = roll_with_advantage(&expression, advantage).map_err(|e| {
             ToolError::ExecutionFailed {
@@ -421,8 +421,7 @@ impl Tool for ApplyDamageTool {
 
         // In a real implementation, this would modify the game state
         let output_text = format!(
-            "{} takes {} {} damage!",
-            target, amount, damage_type
+            "{target} takes {amount} {damage_type} damage!"
         );
 
         Ok(ToolOutput::structured(
@@ -457,7 +456,7 @@ impl Tool for ApplyHealingTool {
         let target = params["target"].as_str().unwrap_or("Unknown");
         let amount = params["amount"].as_i64().unwrap_or(0) as i32;
 
-        let output_text = format!("{} is healed for {} HP!", target, amount);
+        let output_text = format!("{target} is healed for {amount} HP!");
 
         Ok(ToolOutput::structured(
             output_text,

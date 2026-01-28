@@ -16,9 +16,11 @@ use async_trait::async_trait;
 use once_cell::sync::Lazy;
 use serde_json::{json, Value};
 
-use agentic::agent::Agent;
-use agentic::tool::{Tool, ToolAnnotations, ToolContext, ToolOutput};
+use agentic::agent::{Agent, Context};
 use agentic::error::ToolError;
+use agentic::id::ToolCallId;
+use agentic::message::Message;
+use agentic::tool::{Tool, ToolAnnotations, ToolContext, ToolOutput};
 
 // Static schema for subagent tools
 static SUBAGENT_TOOL_SCHEMA: Lazy<Value> = Lazy::new(|| {
@@ -91,16 +93,24 @@ impl Tool for SubagentTool {
                 reason: "Missing 'query' parameter".to_string(),
             })?;
 
-        // In a full implementation, this would:
-        // 1. Build a focused context for the subagent
-        // 2. Send the query to the subagent
-        // 3. Return the result
+        // Build a message for the subagent
+        let message = Message::user(query);
 
-        // Placeholder response
-        Ok(ToolOutput::text(format!(
-            "[{} agent] Processing: {}",
-            self.name, query
-        )))
+        // Create a fresh context for this subagent invocation
+        let mut context = Context::default();
+
+        // Invoke the subagent
+        let response = self
+            .agent
+            .process(message, &mut context)
+            .await
+            .map_err(|e| ToolError::ExecutionFailed {
+                tool_call_id: ToolCallId::new(),
+                reason: format!("[{} agent] {}", self.name, e),
+            })?;
+
+        // Return the agent's response as tool output
+        Ok(ToolOutput::text(response.message.text_content()))
     }
 }
 

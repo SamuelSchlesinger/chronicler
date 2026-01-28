@@ -66,7 +66,7 @@ impl Agent for NPCAgent {
         &[]
     }
 
-    async fn process(&self, message: Message, context: &mut Context) -> Result<Response, AgentError> {
+    async fn process(&self, message: Message, _context: &mut Context) -> Result<Response, AgentError> {
         let input = message.text_content();
 
         // This would:
@@ -74,7 +74,7 @@ impl Agent for NPCAgent {
         // 2. Generate in-character dialogue
         // 3. Track relationship changes
 
-        Ok(Response::text(format!("[NPC] Processing dialogue: {}", input)))
+        Ok(Response::text(format!("[NPC] Processing dialogue: {input}")))
     }
 
     async fn initialize(&mut self) -> Result<(), AgentError> {

@@ -54,7 +54,7 @@ fn handle_normal_mode(state: &mut AppState, key: KeyEvent) -> EventResult {
         KeyCode::Char('a') => {
             // Append mode - go to insert at end
             state.input_mode = InputMode::Insert;
-            state.cursor_position = state.input_buffer.len();
+            state.cursor_position = state.input_buffer.chars().count();
             EventResult::NeedsRedraw
         }
         KeyCode::Char(':') => {
@@ -172,7 +172,7 @@ fn handle_combat_hotkeys(state: &mut AppState, key: KeyEvent) -> EventResult {
         }
         KeyCode::Char(c @ '1'..='9') => {
             let target_idx = c.to_digit(10).unwrap() as usize;
-            state.set_status(format!("Selected target {}", target_idx));
+            state.set_status(format!("Selected target {target_idx}"));
             EventResult::NeedsRedraw
         }
         _ => EventResult::Continue,
@@ -185,7 +185,7 @@ fn handle_dialogue_hotkeys(state: &mut AppState, key: KeyEvent) -> EventResult {
         KeyCode::Char(c @ '1'..='9') => {
             let option_idx = c.to_digit(10).unwrap() as usize;
             state.add_narrative(
-                format!("You choose option {}.", option_idx),
+                format!("You choose option {option_idx}."),
                 NarrativeType::PlayerAction,
             );
             EventResult::NeedsRedraw
@@ -324,7 +324,7 @@ fn handle_command_mode(state: &mut AppState, key: KeyEvent) -> EventResult {
 
 /// Process : commands (like :quit, :roll, etc.)
 fn process_colon_command(state: &mut AppState, command: &str) {
-    let parts: Vec<&str> = command.trim().split_whitespace().collect();
+    let parts: Vec<&str> = command.split_whitespace().collect();
     if parts.is_empty() {
         return;
     }
@@ -398,16 +398,25 @@ fn process_player_input(state: &mut AppState, input: &str) {
     }
 
     // Add player action to narrative
-    state.add_narrative(format!("> {}", input), NarrativeType::PlayerAction);
+    state.add_narrative(format!("> {input}"), NarrativeType::PlayerAction);
 
-    // In a full implementation, this would send to the AI DM
-    // For now, just acknowledge
+    // Try to send to AI DM if available
+    if state.has_ai() {
+        if state.request_ai_response(input) {
+            state.add_narrative(
+                "The DM considers your action...".to_string(),
+                NarrativeType::System,
+            );
+        }
+        return;
+    }
+
+    // Fallback: demo responses when AI is not available
     state.add_narrative(
         "The DM considers your action...".to_string(),
         NarrativeType::System,
     );
 
-    // Demo: simple keyword responses
     let lower = input.to_lowercase();
     if lower.contains("attack") || lower.contains("hit") || lower.contains("strike") {
         state.show_dice_roll("1d20+5", "Attack Roll", Some(15));
@@ -417,8 +426,8 @@ fn process_player_input(state: &mut AppState, input: &str) {
         state.show_dice_roll("1d20+2", "Stealth Check", Some(10));
     } else {
         state.add_narrative(
-            "You proceed with your action.".to_string(),
-            NarrativeType::DmNarration,
+            "[AI not available - set ANTHROPIC_API_KEY to enable the DM]".to_string(),
+            NarrativeType::System,
         );
     }
 }

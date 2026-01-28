@@ -91,26 +91,26 @@ impl Widget for CharacterPanelWidget<'_> {
         let speed = self.character.speed.walk;
 
         let init_str = if init >= 0 {
-            format!("+{}", init)
+            format!("+{init}")
         } else {
-            format!("{}", init)
+            format!("{init}")
         };
 
         let combat_stats = Line::from(vec![
             Span::raw("AC: "),
             Span::styled(
-                format!("{}", ac),
+                format!("{ac}"),
                 Style::default().add_modifier(Modifier::BOLD),
             ),
             Span::raw(" | Init: "),
             Span::styled(init_str, Style::default()),
             Span::raw(" | Spd: "),
-            Span::styled(format!("{}", speed), Style::default()),
+            Span::styled(format!("{speed}"), Style::default()),
         ]);
         Paragraph::new(combat_stats).render(chunks[2], buf);
 
         // Ability scores
-        let abilities_text = render_ability_scores(&self.character);
+        let abilities_text = render_ability_scores(self.character);
         Paragraph::new(abilities_text).render(chunks[3], buf);
 
         // Features and conditions
@@ -164,12 +164,12 @@ fn render_ability_scores(character: &Character) -> Vec<Line<'static>> {
             let score = character.ability_scores.get(*ability);
             let modifier = character.ability_scores.modifier(*ability);
             let mod_str = if modifier >= 0 {
-                format!("+{}", modifier)
+                format!("+{modifier}")
             } else {
-                format!("{}", modifier)
+                format!("{modifier}")
             };
 
-            Line::from(format!("{}: {:2} ({})", abbr, score, mod_str))
+            Line::from(format!("{abbr}: {score:2} ({mod_str})"))
         })
         .collect()
 }

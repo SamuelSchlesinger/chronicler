@@ -1,10 +1,17 @@
 //! Main application state and logic
 
 use std::collections::VecDeque;
+use std::sync::Arc;
 
+use tokio::sync::mpsc;
+
+use agentic::llm::anthropic::AnthropicProvider;
+use agentic::message::Message;
+
+use crate::dnd::ai::dm_agent::DungeonMasterAgent;
 use crate::dnd::game::character::{create_sample_fighter, Character};
 use crate::dnd::game::dice::{DiceExpression, RollResult};
-use crate::dnd::game::state::{GameMode, GameWorld, NarrativeEntry, NarrativeType};
+use crate::dnd::game::state::{GameWorld, NarrativeEntry, NarrativeType};
 use crate::dnd::ui::render::{FocusedPanel, Overlay};
 use crate::dnd::ui::theme::GameTheme;
 
@@ -29,6 +36,21 @@ impl InputMode {
             InputMode::Command => "COMMAND",
         }
     }
+}
+
+/// Message sent to request AI processing
+pub struct AiRequest {
+    pub player_input: String,
+    pub game_snapshot: GameWorld,
+    pub conversation_history: Vec<Message>,
+}
+
+/// Message received from AI processing
+pub enum AiResponse {
+    Narrative(String),
+    ToolResult { tool_name: String, output: String },
+    Error(String),
+    Complete,
 }
 
 /// Main application state
@@ -60,6 +82,13 @@ pub struct AppState {
     // Animation
     pub animation_frame: u8,
     pub pending_roll: Option<PendingRoll>,
+
+    // AI state
+    pub dm_agent: Option<Arc<DungeonMasterAgent>>,
+    pub conversation_history: Vec<Message>,
+    pub ai_request_tx: Option<mpsc::Sender<AiRequest>>,
+    pub ai_response_rx: Option<mpsc::Receiver<AiResponse>>,
+    pub ai_processing: bool,
 }
 
 /// A dice roll waiting to be displayed
@@ -93,6 +122,11 @@ impl AppState {
             should_quit: false,
             animation_frame: 0,
             pending_roll: None,
+            dm_agent: None,
+            conversation_history: Vec::new(),
+            ai_request_tx: None,
+            ai_response_rx: None,
+            ai_processing: false,
         };
 
         // Add initial narrative
@@ -129,7 +163,98 @@ impl AppState {
             should_quit: false,
             animation_frame: 0,
             pending_roll: None,
+            dm_agent: None,
+            conversation_history: Vec::new(),
+            ai_request_tx: None,
+            ai_response_rx: None,
+            ai_processing: false,
         }
+    }
+
+    /// Initialize the AI DM agent
+    pub fn init_ai(&mut self, llm: Arc<AnthropicProvider>) {
+        let dm_agent = Arc::new(DungeonMasterAgent::new(llm));
+        self.dm_agent = Some(dm_agent);
+    }
+
+    /// Set up AI communication channels
+    pub fn setup_ai_channels(
+        &mut self,
+        tx: mpsc::Sender<AiRequest>,
+        rx: mpsc::Receiver<AiResponse>,
+    ) {
+        self.ai_request_tx = Some(tx);
+        self.ai_response_rx = Some(rx);
+    }
+
+    /// Check for and process any pending AI responses
+    pub fn poll_ai_responses(&mut self) {
+        // Collect responses first to avoid borrow issues
+        let responses: Vec<AiResponse> = if let Some(ref mut rx) = self.ai_response_rx {
+            let mut collected = Vec::new();
+            while let Ok(response) = rx.try_recv() {
+                collected.push(response);
+            }
+            collected
+        } else {
+            Vec::new()
+        };
+
+        // Process collected responses
+        for response in responses {
+            match response {
+                AiResponse::Narrative(text) => {
+                    self.add_narrative(text, NarrativeType::DmNarration);
+                }
+                AiResponse::ToolResult { tool_name, output } => {
+                    let text = format!("[{tool_name}: {output}]");
+                    self.add_narrative(text, NarrativeType::System);
+                }
+                AiResponse::Error(err) => {
+                    self.add_narrative(
+                        format!("The DM seems distracted... ({err})"),
+                        NarrativeType::System,
+                    );
+                    self.ai_processing = false;
+                }
+                AiResponse::Complete => {
+                    self.ai_processing = false;
+                    self.streaming_text = None;
+                }
+            }
+        }
+    }
+
+    /// Send a request to the AI DM
+    pub fn request_ai_response(&mut self, player_input: &str) -> bool {
+        if self.ai_processing {
+            self.set_status("DM is still thinking...");
+            return false;
+        }
+
+        if let Some(ref tx) = self.ai_request_tx {
+            let request = AiRequest {
+                player_input: player_input.to_string(),
+                game_snapshot: self.game.clone(),
+                conversation_history: self.conversation_history.clone(),
+            };
+
+            if tx.try_send(request).is_ok() {
+                self.ai_processing = true;
+                self.streaming_text = Some(String::new());
+
+                // Add player message to conversation history
+                self.conversation_history.push(Message::user(player_input));
+                return true;
+            }
+        }
+
+        false
+    }
+
+    /// Check if AI is available
+    pub fn has_ai(&self) -> bool {
+        self.dm_agent.is_some() && self.ai_request_tx.is_some()
     }
 
     /// Enter insert mode
@@ -147,12 +272,13 @@ impl AppState {
 
     /// Exit to normal mode
     pub fn enter_normal_mode(&mut self) {
-        self.input_mode = InputMode::Normal;
-        // Clear input buffer when leaving insert/command mode via Esc
-        if self.input_mode != InputMode::Insert {
+        // Clear input buffer when leaving command mode (but not insert mode)
+        // In insert mode, we preserve the buffer so users can resume typing
+        if self.input_mode == InputMode::Command {
             self.input_buffer.clear();
             self.cursor_position = 0;
         }
+        self.input_mode = InputMode::Normal;
     }
 
     /// Check if we're in a text input mode
@@ -173,7 +299,8 @@ impl AppState {
 
     /// Scroll narrative to bottom
     pub fn scroll_to_bottom(&mut self) {
-        self.narrative_scroll = self.narrative_history.len().saturating_sub(1);
+        // Set to max value - the widget will cap it to actual max_scroll
+        self.narrative_scroll = usize::MAX / 2;
     }
 
     /// Scroll narrative up
@@ -183,8 +310,8 @@ impl AppState {
 
     /// Scroll narrative down
     pub fn scroll_down(&mut self, lines: usize) {
-        self.narrative_scroll = (self.narrative_scroll + lines)
-            .min(self.narrative_history.len().saturating_sub(1));
+        // Allow increasing without cap - widget will handle actual bounds
+        self.narrative_scroll = self.narrative_scroll.saturating_add(lines);
     }
 
     /// Submit current input
@@ -206,9 +333,11 @@ impl AppState {
         Some(input)
     }
 
-    /// Handle a typed character
+    /// Handle a typed character (cursor_position is in characters, not bytes)
     pub fn type_char(&mut self, c: char) {
-        self.input_buffer.insert(self.cursor_position, c);
+        // Convert character position to byte position for insertion
+        let byte_pos = self.char_to_byte_pos(self.cursor_position);
+        self.input_buffer.insert(byte_pos, c);
         self.cursor_position += 1;
     }
 
@@ -216,14 +345,17 @@ impl AppState {
     pub fn backspace(&mut self) {
         if self.cursor_position > 0 {
             self.cursor_position -= 1;
-            self.input_buffer.remove(self.cursor_position);
+            let byte_pos = self.char_to_byte_pos(self.cursor_position);
+            self.input_buffer.remove(byte_pos);
         }
     }
 
     /// Handle delete
     pub fn delete(&mut self) {
-        if self.cursor_position < self.input_buffer.len() {
-            self.input_buffer.remove(self.cursor_position);
+        let char_count = self.input_buffer.chars().count();
+        if self.cursor_position < char_count {
+            let byte_pos = self.char_to_byte_pos(self.cursor_position);
+            self.input_buffer.remove(byte_pos);
         }
     }
 
@@ -234,7 +366,8 @@ impl AppState {
 
     /// Move cursor right
     pub fn cursor_right(&mut self) {
-        self.cursor_position = (self.cursor_position + 1).min(self.input_buffer.len());
+        let char_count = self.input_buffer.chars().count();
+        self.cursor_position = (self.cursor_position + 1).min(char_count);
     }
 
     /// Move cursor to start
@@ -244,7 +377,16 @@ impl AppState {
 
     /// Move cursor to end
     pub fn cursor_end(&mut self) {
-        self.cursor_position = self.input_buffer.len();
+        self.cursor_position = self.input_buffer.chars().count();
+    }
+
+    /// Convert character position to byte position for string operations
+    fn char_to_byte_pos(&self, char_pos: usize) -> usize {
+        self.input_buffer
+            .char_indices()
+            .nth(char_pos)
+            .map(|(byte_pos, _)| byte_pos)
+            .unwrap_or(self.input_buffer.len())
     }
 
     /// Navigate to previous input in history
@@ -262,7 +404,7 @@ impl AppState {
         if let Some(idx) = new_index {
             if let Some(entry) = self.input_history.get(idx) {
                 self.input_buffer = entry.clone();
-                self.cursor_position = self.input_buffer.len();
+                self.cursor_position = self.input_buffer.chars().count();
                 self.history_index = new_index;
             }
         }
@@ -280,7 +422,7 @@ impl AppState {
             Some(i) => {
                 if let Some(entry) = self.input_history.get(i - 1) {
                     self.input_buffer = entry.clone();
-                    self.cursor_position = self.input_buffer.len();
+                    self.cursor_position = self.input_buffer.chars().count();
                     self.history_index = Some(i - 1);
                 }
             }
@@ -332,54 +474,6 @@ impl AppState {
             };
 
             self.add_narrative(result_text, NarrativeType::System);
-        }
-    }
-
-    /// Process a slash command
-    pub fn process_command(&mut self, command: &str) -> bool {
-        let parts: Vec<&str> = command.trim().split_whitespace().collect();
-        if parts.is_empty() {
-            return false;
-        }
-
-        match parts[0] {
-            "/roll" => {
-                if parts.len() > 1 {
-                    let expression = parts[1..].join("");
-                    self.show_dice_roll(&expression, "Manual Roll", None);
-                } else {
-                    self.status_message = Some("Usage: /roll XdY+Z".to_string());
-                }
-                true
-            }
-            "/quit" | "/exit" => {
-                self.should_quit = true;
-                true
-            }
-            "/help" => {
-                self.toggle_help();
-                true
-            }
-            "/rest" => {
-                if parts.len() > 1 && parts[1] == "long" {
-                    self.game.long_rest();
-                    self.add_narrative(
-                        "You take a long rest, recovering fully.".to_string(),
-                        NarrativeType::System,
-                    );
-                } else {
-                    self.game.short_rest();
-                    self.add_narrative(
-                        "You take a short rest.".to_string(),
-                        NarrativeType::System,
-                    );
-                }
-                true
-            }
-            _ => {
-                self.status_message = Some(format!("Unknown command: {}", parts[0]));
-                false
-            }
         }
     }
 

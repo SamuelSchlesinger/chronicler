@@ -185,7 +185,7 @@ impl Condition {
 impl fmt::Display for Condition {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Condition::Exhaustion(level) => write!(f, "Exhaustion ({})", level),
+            Condition::Exhaustion(level) => write!(f, "Exhaustion ({level})"),
             _ => write!(f, "{}", self.name()),
         }
     }

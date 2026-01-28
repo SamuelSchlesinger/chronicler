@@ -1,16 +1,14 @@
 //! Main render function for the D&D TUI
 
 use ratatui::{
-    buffer::Buffer,
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph, Widget},
+    widgets::{Block, Borders, Clear, Paragraph},
     Frame,
 };
 
-use super::layout::{centered_rect, AppLayout, CombatLayout};
-use super::theme::GameTheme;
+use super::layout::{centered_rect, AppLayout};
 use super::widgets::*;
 use crate::dnd::app::AppState;
 use crate::dnd::game::state::GameMode;
@@ -61,7 +59,8 @@ fn render_exploration_mode(frame: &mut Frame, area: Rect, state: &AppState) {
 
     // Status bar
     let status = StatusBarWidget::new(&state.game.player_character, state.game.mode, state.input_mode, theme)
-        .message(state.status_message.as_deref());
+        .message(state.status_message.as_deref())
+        .ai_processing(state.ai_processing, state.animation_frame);
     frame.render_widget(status, layout.status_bar);
 
     // Hotkey bar
@@ -111,7 +110,8 @@ fn render_combat_mode(frame: &mut Frame, area: Rect, state: &AppState) {
 
     // Status bar (with combat actions remaining)
     let status = StatusBarWidget::new(&state.game.player_character, state.game.mode, state.input_mode, theme)
-        .message(state.status_message.as_deref());
+        .message(state.status_message.as_deref())
+        .ai_processing(state.ai_processing, state.animation_frame);
     frame.render_widget(status, layout.status_bar);
 
     // Hotkey bar (combat actions)
@@ -131,12 +131,12 @@ fn render_title_bar(frame: &mut Frame, area: Rect, state: &AppState) {
 
     let title = Line::from(vec![
         Span::styled(
-            format!(" {} ", location),
+            format!(" {location} "),
             Style::default().add_modifier(Modifier::BOLD),
         ),
         Span::raw("─"),
         Span::styled(
-            format!(" {} ", time),
+            format!(" {time} "),
             Style::default().add_modifier(Modifier::DIM),
         ),
     ]);
@@ -186,26 +186,27 @@ fn render_help_overlay(frame: &mut Frame, area: Rect, state: &AppState) {
         Line::from("  C         - View character sheet"),
         Line::from("  Q         - View quest log"),
         Line::from("  J         - Open journal"),
-        Line::from("  R         - Request rest"),
+        Line::from("  r         - Short rest"),
+        Line::from("  R         - Long rest"),
         Line::from(""),
         Line::from(Span::styled(
             "Combat Mode",
             Style::default().add_modifier(Modifier::BOLD),
         )),
         Line::from("  A         - Attack"),
-        Line::from("  C         - Cast spell"),
-        Line::from("  D         - Dash"),
-        Line::from("  U         - Use item"),
-        Line::from("  E         - End turn"),
+        Line::from("  c         - Cast spell"),
+        Line::from("  d         - Dash"),
+        Line::from("  e         - End turn"),
+        Line::from("  1-9       - Select target"),
         Line::from(""),
         Line::from(Span::styled(
-            "Commands",
+            "Commands (press : first)",
             Style::default().add_modifier(Modifier::BOLD),
         )),
-        Line::from("  /roll XdY - Roll dice (e.g., /roll 1d20+5)"),
-        Line::from("  /rest     - Request rest"),
-        Line::from("  /save     - Save game"),
-        Line::from("  /quit     - Quit game"),
+        Line::from("  :roll XdY - Roll dice (e.g., :roll 1d20+5)"),
+        Line::from("  :rest     - Short rest (:rest long for long)"),
+        Line::from("  :w        - Save game"),
+        Line::from("  :q        - Quit game"),
     ];
 
     let paragraph = Paragraph::new(help_text).block(block);

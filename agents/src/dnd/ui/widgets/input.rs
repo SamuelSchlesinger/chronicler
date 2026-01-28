@@ -10,18 +10,10 @@ use ratatui::{
 
 use crate::dnd::ui::theme::GameTheme;
 
-/// Input mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum InputMode {
-    Normal,
-    Insert,
-}
-
 /// Input field widget
 pub struct InputWidget<'a> {
     content: &'a str,
     cursor_position: usize,
-    mode: InputMode,
     theme: &'a GameTheme,
     placeholder: &'a str,
 }
@@ -30,8 +22,7 @@ impl<'a> InputWidget<'a> {
     pub fn new(content: &'a str, theme: &'a GameTheme) -> Self {
         Self {
             content,
-            cursor_position: content.len(),
-            mode: InputMode::Insert,
+            cursor_position: content.chars().count(),
             theme,
             placeholder: "Enter your action...",
         }
@@ -39,11 +30,6 @@ impl<'a> InputWidget<'a> {
 
     pub fn cursor_position(mut self, pos: usize) -> Self {
         self.cursor_position = pos;
-        self
-    }
-
-    pub fn mode(mut self, mode: InputMode) -> Self {
-        self.mode = mode;
         self
     }
 
@@ -72,17 +58,29 @@ impl Widget for InputWidget<'_> {
                 ),
             ])
         } else {
-            let before_cursor = &self.content[..self.cursor_position.min(self.content.len())];
-            let at_cursor = self
-                .content
-                .chars()
-                .nth(self.cursor_position)
-                .map(|c| c.to_string())
-                .unwrap_or_else(|| " ".to_string());
-            let after_cursor = if self.cursor_position < self.content.len() {
-                &self.content[self.cursor_position + 1..]
+            // Use char_indices for UTF-8 safe slicing
+            let char_indices: Vec<(usize, char)> = self.content.char_indices().collect();
+            let cursor_pos = self.cursor_position.min(char_indices.len());
+
+            // Find byte boundaries for slicing
+            let before_byte_end = if cursor_pos < char_indices.len() {
+                char_indices[cursor_pos].0
             } else {
-                ""
+                self.content.len()
+            };
+
+            let before_cursor = &self.content[..before_byte_end];
+
+            let (at_cursor, after_cursor) = if cursor_pos < char_indices.len() {
+                let cursor_char = char_indices[cursor_pos].1.to_string();
+                let after_byte_start = if cursor_pos + 1 < char_indices.len() {
+                    char_indices[cursor_pos + 1].0
+                } else {
+                    self.content.len()
+                };
+                (cursor_char, &self.content[after_byte_start..])
+            } else {
+                (" ".to_string(), "")
             };
 
             Line::from(vec![
@@ -91,7 +89,7 @@ impl Widget for InputWidget<'_> {
                 Span::styled(
                     at_cursor,
                     Style::default()
-                        .add_modifier(Modifier::REVERSED)
+                        .add_modifier(Modifier::UNDERLINED | Modifier::BOLD)
                         .fg(self.theme.player_text),
                 ),
                 Span::raw(after_cursor),

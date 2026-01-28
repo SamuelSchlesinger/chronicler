@@ -273,7 +273,7 @@ impl DiceExpression {
                 let roll1 = rng.gen_range(1..=20u32);
                 let roll2 = rng.gen_range(1..=20u32);
 
-                let (chosen, other) = match advantage {
+                let (chosen, _other) = match advantage {
                     Advantage::Advantage => {
                         if roll1 >= roll2 {
                             (roll1, roll2)
@@ -368,7 +368,6 @@ impl RollResult {
             .map(|c| {
                 if c.rolls.len() > c.kept.len() {
                     // Show dropped dice in parentheses
-                    let kept_set: std::collections::HashSet<_> = c.kept.iter().collect();
                     let mut shown = Vec::new();
                     let mut kept_used = vec![false; c.kept.len()];
 
@@ -383,9 +382,9 @@ impl RollResult {
                         });
 
                         if is_kept {
-                            shown.push(format!("{}", roll));
+                            shown.push(format!("{roll}"));
                         } else {
-                            shown.push(format!("({})", roll));
+                            shown.push(format!("({roll})"));
                         }
                     }
                     format!("[{}]", shown.join(", "))

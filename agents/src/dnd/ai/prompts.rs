@@ -1,7 +1,6 @@
 //! System prompts for the D&D DM agent
 
-use crate::dnd::game::character::Character;
-use crate::dnd::game::state::{GameMode, GameWorld};
+use crate::dnd::game::state::GameWorld;
 
 /// Build the main DM system prompt
 pub fn build_dm_system_prompt(game: &GameWorld) -> String {
@@ -105,7 +104,7 @@ pub fn build_combat_prompt(game: &GameWorld) -> String {
         String::new()
     };
 
-    format!("{}\n{}", base, combat_context)
+    format!("{base}\n{combat_context}")
 }
 
 /// Build a dialogue-specific system prompt for NPC interaction
