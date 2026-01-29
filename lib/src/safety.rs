@@ -292,10 +292,7 @@ pub trait AuditLogger: Send + Sync {
     async fn log_action(&self, entry: AuditEntry) -> Result<(), SafetyError>;
 
     /// Query audit logs
-    async fn query(
-        &self,
-        query: &AuditQuery,
-    ) -> Result<Vec<AuditEntry>, SafetyError>;
+    async fn query(&self, query: &AuditQuery) -> Result<Vec<AuditEntry>, SafetyError>;
 }
 
 /// An entry in the audit log

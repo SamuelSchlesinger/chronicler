@@ -19,7 +19,10 @@ pub trait ContextManager: Send + Sync {
     async fn build_context(&self, request: &ContextRequest) -> Result<BuiltContext, ContextError>;
 
     /// Compress context when approaching limits
-    async fn compress(&self, context: &mut ConversationContext) -> Result<CompressionReport, ContextError>;
+    async fn compress(
+        &self,
+        context: &mut ConversationContext,
+    ) -> Result<CompressionReport, ContextError>;
 
     /// Summarize content
     async fn summarize(&self, content: &str) -> Result<String, ContextError>;
@@ -302,7 +305,8 @@ impl RetrievalOptions {
 #[async_trait]
 pub trait StatePersistence: Send + Sync {
     /// Save a checkpoint
-    async fn checkpoint(&self, context: &ConversationContext) -> Result<CheckpointId, ContextError>;
+    async fn checkpoint(&self, context: &ConversationContext)
+    -> Result<CheckpointId, ContextError>;
 
     /// Restore from a checkpoint
     async fn restore(&self, id: CheckpointId) -> Result<ConversationContext, ContextError>;

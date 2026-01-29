@@ -245,7 +245,9 @@ impl Action {
                 format!("external:{}:{}", method.as_deref().unwrap_or("GET"), target)
             }
             ActionType::FileSystem { operation, path } => format!("file:{operation:?}:{path}"),
-            ActionType::Shell { command, .. } => format!("shell:{}", &command[..command.len().min(50)]),
+            ActionType::Shell { command, .. } => {
+                format!("shell:{}", &command[..command.len().min(50)])
+            }
         }
     }
 }
@@ -265,7 +267,6 @@ pub enum Priority {
     /// Critical - execute immediately
     Critical,
 }
-
 
 impl fmt::Display for Priority {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -309,7 +310,11 @@ impl ActionResult {
     }
 
     /// Create a failure result
-    pub fn failure(action_id: ActionId, error: impl Into<String>, duration: std::time::Duration) -> Self {
+    pub fn failure(
+        action_id: ActionId,
+        error: impl Into<String>,
+        duration: std::time::Duration,
+    ) -> Self {
         Self {
             action_id,
             success: false,

@@ -11,7 +11,7 @@ use crate::id::ToolCallId;
 use crate::message::{ContentBlock, Message, Role};
 use async_trait::async_trait;
 use futures::StreamExt;
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
 use std::pin::Pin;
 use tokio_stream::Stream;
@@ -61,10 +61,7 @@ impl AnthropicProvider {
             HeaderValue::from_str(&self.api_key)
                 .map_err(|e| LlmError::Configuration(format!("Invalid API key: {e}")))?,
         );
-        headers.insert(
-            "anthropic-version",
-            HeaderValue::from_static(API_VERSION),
-        );
+        headers.insert("anthropic-version", HeaderValue::from_static(API_VERSION));
         Ok(headers)
     }
 
@@ -105,10 +102,22 @@ impl AnthropicProvider {
             stop_sequences: request.stop_sequences.clone(),
             tools,
             tool_choice: request.tool_choice.as_ref().map(|tc| match tc {
-                super::ToolChoice::Auto => ApiToolChoice { r#type: "auto".to_string(), name: None },
-                super::ToolChoice::Any => ApiToolChoice { r#type: "any".to_string(), name: None },
-                super::ToolChoice::Tool { name } => ApiToolChoice { r#type: "tool".to_string(), name: Some(name.clone()) },
-                super::ToolChoice::None => ApiToolChoice { r#type: "none".to_string(), name: None },
+                super::ToolChoice::Auto => ApiToolChoice {
+                    r#type: "auto".to_string(),
+                    name: None,
+                },
+                super::ToolChoice::Any => ApiToolChoice {
+                    r#type: "any".to_string(),
+                    name: None,
+                },
+                super::ToolChoice::Tool { name } => ApiToolChoice {
+                    r#type: "tool".to_string(),
+                    name: Some(name.clone()),
+                },
+                super::ToolChoice::None => ApiToolChoice {
+                    r#type: "none".to_string(),
+                    name: None,
+                },
             }),
             stream: false,
         }
@@ -260,12 +269,13 @@ fn parse_sse_event(text: &str) -> Result<StreamEvent, LlmError> {
                     message_id: message.id,
                     model: message.model,
                 },
-                ApiStreamEvent::ContentBlockStart { index, content_block } => {
-                    StreamEvent::ContentBlockStart {
-                        index,
-                        content_type: content_block.r#type,
-                    }
-                }
+                ApiStreamEvent::ContentBlockStart {
+                    index,
+                    content_block,
+                } => StreamEvent::ContentBlockStart {
+                    index,
+                    content_type: content_block.r#type,
+                },
                 ApiStreamEvent::ContentBlockDelta { index, delta } => {
                     let content_delta = match delta {
                         ApiDelta::TextDelta { text } => ContentDelta::TextDelta { text },
@@ -343,10 +353,22 @@ struct ApiMessage {
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ApiContentBlock {
-    Text { text: String },
-    Image { source: ApiImageSource },
-    ToolUse { id: String, name: String, input: serde_json::Value },
-    ToolResult { tool_use_id: String, content: String, is_error: Option<bool> },
+    Text {
+        text: String,
+    },
+    Image {
+        source: ApiImageSource,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+    },
+    ToolResult {
+        tool_use_id: String,
+        content: String,
+        is_error: Option<bool>,
+    },
 }
 
 impl From<&ContentBlock> for ApiContentBlock {
@@ -365,16 +387,20 @@ impl From<&ContentBlock> for ApiContentBlock {
                 name: name.clone(),
                 input: input.clone(),
             },
-            ContentBlock::ToolResult { tool_use_id, content, is_error } => {
-                ApiContentBlock::ToolResult {
-                    tool_use_id: tool_use_id.to_string(),
-                    content: content.clone(),
-                    is_error: Some(*is_error),
-                }
-            }
+            ContentBlock::ToolResult {
+                tool_use_id,
+                content,
+                is_error,
+            } => ApiContentBlock::ToolResult {
+                tool_use_id: tool_use_id.to_string(),
+                content: content.clone(),
+                is_error: Some(*is_error),
+            },
             ContentBlock::Thinking { thinking } => {
                 // Thinking blocks are not sent to the API, convert to text
-                ApiContentBlock::Text { text: thinking.clone() }
+                ApiContentBlock::Text {
+                    text: thinking.clone(),
+                }
             }
         }
     }
@@ -413,9 +439,17 @@ struct ApiResponse {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ApiContent {
-    Text { text: String },
-    ToolUse { id: String, name: String, input: serde_json::Value },
-    Thinking { thinking: String },
+    Text {
+        text: String,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+    },
+    Thinking {
+        thinking: String,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -431,14 +465,29 @@ struct ApiUsage {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ApiStreamEvent {
-    MessageStart { message: ApiMessageStart },
-    ContentBlockStart { index: usize, content_block: ApiContentBlockStart },
-    ContentBlockDelta { index: usize, delta: ApiDelta },
-    ContentBlockStop { index: usize },
-    MessageDelta { delta: ApiMessageDelta, usage: Option<ApiStreamUsage> },
+    MessageStart {
+        message: ApiMessageStart,
+    },
+    ContentBlockStart {
+        index: usize,
+        content_block: ApiContentBlockStart,
+    },
+    ContentBlockDelta {
+        index: usize,
+        delta: ApiDelta,
+    },
+    ContentBlockStop {
+        index: usize,
+    },
+    MessageDelta {
+        delta: ApiMessageDelta,
+        usage: Option<ApiStreamUsage>,
+    },
     MessageStop,
     Ping,
-    Error { error: ApiError },
+    Error {
+        error: ApiError,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -454,6 +503,7 @@ struct ApiContentBlockStart {
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[allow(clippy::enum_variant_names)]
 enum ApiDelta {
     TextDelta { text: String },
     InputJsonDelta { partial_json: String },

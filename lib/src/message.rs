@@ -103,7 +103,11 @@ impl ContentBlock {
     }
 
     /// Create a tool result content block
-    pub fn tool_result(tool_use_id: ToolCallId, content: impl Into<String>, is_error: bool) -> Self {
+    pub fn tool_result(
+        tool_use_id: ToolCallId,
+        content: impl Into<String>,
+        is_error: bool,
+    ) -> Self {
         ContentBlock::ToolResult {
             tool_use_id,
             content: content.into(),
@@ -243,7 +247,11 @@ impl Message {
     }
 
     /// Create a tool result message
-    pub fn tool_result(tool_use_id: ToolCallId, content: impl Into<String>, is_error: bool) -> Self {
+    pub fn tool_result(
+        tool_use_id: ToolCallId,
+        content: impl Into<String>,
+        is_error: bool,
+    ) -> Self {
         Self::new(
             Role::Tool,
             vec![ContentBlock::tool_result(tool_use_id, content, is_error)],

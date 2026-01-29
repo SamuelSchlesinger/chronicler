@@ -122,16 +122,21 @@ impl Claude {
             });
         }
 
-        let stream = response.bytes_stream().flat_map(move |result| {
-            let events = match result {
-                Ok(bytes) => {
-                    let text = String::from_utf8_lossy(&bytes);
-                    parse_sse_events(&text)
-                }
-                Err(e) => vec![Err(Error::Network(e.to_string()))],
-            };
-            futures::stream::iter(events)
-        });
+        // Use scan to maintain a buffer for incomplete SSE events across chunks
+        let stream = response
+            .bytes_stream()
+            .scan(String::new(), |buffer, result| {
+                let events = match result {
+                    Ok(bytes) => {
+                        buffer.push_str(&String::from_utf8_lossy(&bytes));
+                        parse_sse_events_buffered(buffer)
+                    }
+                    Err(e) => vec![Err(Error::Network(e.to_string()))],
+                };
+                // Return Some to continue, the events vector
+                futures::future::ready(Some(events))
+            })
+            .flat_map(futures::stream::iter);
 
         Ok(Box::pin(stream))
     }
@@ -271,7 +276,9 @@ impl Claude {
             .into_iter()
             .map(|c| match c {
                 ApiContent::Text { text } => ContentBlock::Text { text },
-                ApiContent::ToolUse { id, name, input } => ContentBlock::ToolUse { id, name, input },
+                ApiContent::ToolUse { id, name, input } => {
+                    ContentBlock::ToolUse { id, name, input }
+                }
                 ApiContent::Thinking { thinking } => ContentBlock::Thinking { thinking },
             })
             .collect();
@@ -518,7 +525,14 @@ impl ToolResult {
 #[derive(Debug, Clone)]
 pub enum StreamEvent {
     MessageStart { id: String, model: String },
-    ContentBlockStart { index: usize, content_type: String },
+    ContentBlockStart {
+        index: usize,
+        content_type: String,
+        /// Tool use ID (only present for tool_use blocks)
+        tool_use_id: Option<String>,
+        /// Tool name (only present for tool_use blocks)
+        tool_name: Option<String>,
+    },
     TextDelta { index: usize, text: String },
     InputJsonDelta { index: usize, partial_json: String },
     ContentBlockStop { index: usize },
@@ -557,10 +571,22 @@ struct ApiMessage {
 #[derive(Debug, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ApiContentBlock {
-    Text { text: String },
-    Image { source: ApiImageSource },
-    ToolUse { id: String, name: String, input: serde_json::Value },
-    ToolResult { tool_use_id: String, content: String, is_error: bool },
+    Text {
+        text: String,
+    },
+    Image {
+        source: ApiImageSource,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+    },
+    ToolResult {
+        tool_use_id: String,
+        content: String,
+        is_error: bool,
+    },
 }
 
 impl From<&ContentBlock> for ApiContentBlock {
@@ -628,9 +654,17 @@ struct ApiResponse {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ApiContent {
-    Text { text: String },
-    ToolUse { id: String, name: String, input: serde_json::Value },
-    Thinking { thinking: String },
+    Text {
+        text: String,
+    },
+    ToolUse {
+        id: String,
+        name: String,
+        input: serde_json::Value,
+    },
+    Thinking {
+        thinking: String,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -643,14 +677,28 @@ struct ApiUsage {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum ApiStreamEvent {
-    MessageStart { message: ApiMessageStart },
-    ContentBlockStart { index: usize, content_block: ApiContentBlockStart },
-    ContentBlockDelta { index: usize, delta: ApiDelta },
-    ContentBlockStop { index: usize },
-    MessageDelta { delta: ApiMessageDelta },
+    MessageStart {
+        message: ApiMessageStart,
+    },
+    ContentBlockStart {
+        index: usize,
+        content_block: ApiContentBlockStart,
+    },
+    ContentBlockDelta {
+        index: usize,
+        delta: ApiDelta,
+    },
+    ContentBlockStop {
+        index: usize,
+    },
+    MessageDelta {
+        delta: ApiMessageDelta,
+    },
     MessageStop,
     Ping,
-    Error { error: ApiError },
+    Error {
+        error: ApiError,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -662,10 +710,17 @@ struct ApiMessageStart {
 #[derive(Debug, Deserialize)]
 struct ApiContentBlockStart {
     r#type: String,
+    /// Tool use ID (present for tool_use blocks)
+    #[serde(default)]
+    id: Option<String>,
+    /// Tool name (present for tool_use blocks)
+    #[serde(default)]
+    name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[allow(clippy::enum_variant_names)]
 enum ApiDelta {
     TextDelta { text: String },
     InputJsonDelta { partial_json: String },
@@ -682,29 +737,49 @@ struct ApiError {
     message: String,
 }
 
-/// Parse SSE events from a chunk of text.
-fn parse_sse_events(text: &str) -> Vec<Result<StreamEvent, Error>> {
+/// Parse SSE events from a buffer, consuming complete events and leaving incomplete data.
+///
+/// SSE events are separated by double newlines. This function finds complete events,
+/// parses them, and removes them from the buffer, leaving any incomplete event data
+/// for the next chunk.
+fn parse_sse_events_buffered(buffer: &mut String) -> Vec<Result<StreamEvent, Error>> {
     let mut events = Vec::new();
 
-    for line in text.lines() {
+    // Process complete SSE events (terminated by \n\n or at end of valid data lines)
+    loop {
+        // Find the next complete line (ending with \n)
+        let Some(newline_pos) = buffer.find('\n') else {
+            // No complete line yet, wait for more data
+            break;
+        };
+
+        let line = &buffer[..newline_pos];
+
+        // Check if this is a data line
         if let Some(json_str) = line.strip_prefix("data: ") {
             if json_str == "[DONE]" {
                 events.push(Ok(StreamEvent::MessageStop));
-                continue;
-            }
-
-            match serde_json::from_str::<ApiStreamEvent>(json_str) {
-                Ok(event) => events.push(Ok(convert_stream_event(event))),
-                Err(e) => events.push(Err(Error::Parse(format!("SSE parse error: {e}")))),
+            } else if !json_str.is_empty() {
+                match serde_json::from_str::<ApiStreamEvent>(json_str) {
+                    Ok(event) => events.push(Ok(convert_stream_event(event))),
+                    Err(e) => {
+                        // Check if it looks like incomplete JSON (ends abruptly)
+                        // If so, don't consume the line - wait for more data
+                        if e.is_eof() {
+                            break;
+                        }
+                        events.push(Err(Error::Parse(format!("SSE parse error: {e}"))));
+                    }
+                }
             }
         }
+        // Skip event: lines, empty lines, and other SSE metadata
+
+        // Consume the processed line (including the newline)
+        buffer.drain(..=newline_pos);
     }
 
-    // If no events were parsed, treat as keepalive
-    if events.is_empty() {
-        events.push(Ok(StreamEvent::Ping));
-    }
-
+    // Return events (may be empty if waiting for more data)
     events
 }
 
@@ -714,15 +789,21 @@ fn convert_stream_event(event: ApiStreamEvent) -> StreamEvent {
             id: message.id,
             model: message.model,
         },
-        ApiStreamEvent::ContentBlockStart { index, content_block } => StreamEvent::ContentBlockStart {
+        ApiStreamEvent::ContentBlockStart {
+            index,
+            content_block,
+        } => StreamEvent::ContentBlockStart {
             index,
             content_type: content_block.r#type,
+            tool_use_id: content_block.id,
+            tool_name: content_block.name,
         },
         ApiStreamEvent::ContentBlockDelta { index, delta } => match delta {
             ApiDelta::TextDelta { text } => StreamEvent::TextDelta { index, text },
-            ApiDelta::InputJsonDelta { partial_json } => {
-                StreamEvent::InputJsonDelta { index, partial_json }
-            }
+            ApiDelta::InputJsonDelta { partial_json } => StreamEvent::InputJsonDelta {
+                index,
+                partial_json,
+            },
             ApiDelta::ThinkingDelta { thinking } => StreamEvent::TextDelta {
                 index,
                 text: thinking,

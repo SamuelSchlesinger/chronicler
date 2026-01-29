@@ -106,7 +106,11 @@ pub trait MemoryManager: Send + Sync {
     fn procedural(&self) -> &Self::Procedural;
 
     /// Recall relevant memories for a given context
-    async fn recall(&self, query: &str, context: &RecallContext) -> Result<RelevantMemories, MemoryError>;
+    async fn recall(
+        &self,
+        query: &str,
+        context: &RecallContext,
+    ) -> Result<RelevantMemories, MemoryError>;
 
     /// Consolidate memories (extract patterns, prune old memories)
     async fn consolidate(&self) -> Result<ConsolidationReport, MemoryError>;
@@ -144,7 +148,11 @@ pub struct Experience {
 
 impl Experience {
     /// Create a new experience
-    pub fn new(context: impl Into<String>, action: impl Into<String>, outcome: impl Into<String>) -> Self {
+    pub fn new(
+        context: impl Into<String>,
+        action: impl Into<String>,
+        outcome: impl Into<String>,
+    ) -> Self {
         Self {
             id: MemoryId::new(),
             timestamp: Utc::now(),
@@ -497,9 +505,11 @@ mod tests {
 
     #[test]
     fn test_skill_stats() {
-        let mut stats = SkillStats::default();
-        stats.use_count = 10;
-        stats.success_count = 8;
+        let stats = SkillStats {
+            use_count: 10,
+            success_count: 8,
+            ..Default::default()
+        };
 
         assert_eq!(stats.success_rate(), 0.8);
     }

@@ -389,7 +389,11 @@ mod tests {
             &SCHEMA
         }
 
-        async fn execute(&self, params: Value, _context: &ToolContext) -> Result<ToolOutput, ToolError> {
+        async fn execute(
+            &self,
+            params: Value,
+            _context: &ToolContext,
+        ) -> Result<ToolOutput, ToolError> {
             Ok(ToolOutput::text(format!("Executed with: {params}")))
         }
     }
