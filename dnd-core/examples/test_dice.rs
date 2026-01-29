@@ -1,6 +1,6 @@
 //! Test dice rolling functionality
 
-use dnd_core::dice::{DiceExpression, Advantage};
+use dnd_core::dice::{Advantage, DiceExpression};
 
 fn main() {
     println!("=== Testing Dice Rolling ===\n");
@@ -26,7 +26,9 @@ fn test_roll(expr_str: &str, description: &str) {
     match DiceExpression::parse(expr_str) {
         Ok(expr) => {
             let result = expr.roll();
-            let rolls: Vec<_> = result.component_results.iter()
+            let rolls: Vec<_> = result
+                .component_results
+                .iter()
                 .flat_map(|c| c.kept.iter())
                 .collect();
             println!("Result: {} (kept: {:?})", result.total, rolls);
@@ -42,7 +44,9 @@ fn test_advantage(expr_str: &str, advantage: Advantage, description: &str) {
     match DiceExpression::parse(expr_str) {
         Ok(expr) => {
             let result = expr.roll_with_advantage(advantage);
-            let rolls: Vec<_> = result.component_results.iter()
+            let rolls: Vec<_> = result
+                .component_results
+                .iter()
                 .flat_map(|c| c.kept.iter())
                 .collect();
             println!("Result: {} (kept: {:?})", result.total, rolls);

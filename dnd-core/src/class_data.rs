@@ -403,7 +403,9 @@ impl CharacterClass {
             CharacterClass::Ranger => "A warrior who combats threats on the edges of civilization",
             CharacterClass::Rogue => "A scoundrel who uses stealth and trickery",
             CharacterClass::Sorcerer => "A spellcaster who draws on inherent magic",
-            CharacterClass::Warlock => "A wielder of magic derived from a bargain with an extraplanar entity",
+            CharacterClass::Warlock => {
+                "A wielder of magic derived from a bargain with an extraplanar entity"
+            }
             CharacterClass::Wizard => "A scholarly magic-user who masters arcane secrets",
         }
     }
@@ -445,10 +447,16 @@ mod tests {
     #[test]
     fn test_fighter_data() {
         let data = CharacterClass::Fighter.data();
-        assert_eq!(data.saving_throws, [Ability::Strength, Ability::Constitution]);
+        assert_eq!(
+            data.saving_throws,
+            [Ability::Strength, Ability::Constitution]
+        );
         assert_eq!(data.skill_count, 2);
         assert_eq!(data.base_hp, 10);
-        assert!(data.level_1_features.iter().any(|f| f.name == "Second Wind"));
+        assert!(data
+            .level_1_features
+            .iter()
+            .any(|f| f.name == "Second Wind"));
     }
 
     #[test]

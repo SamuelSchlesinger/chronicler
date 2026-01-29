@@ -68,8 +68,7 @@ impl StoryMemory {
         let id = entity.id;
 
         // Index by lowercase name
-        self.name_index
-            .insert(entity.name.to_lowercase(), id);
+        self.name_index.insert(entity.name.to_lowercase(), id);
 
         // Also index aliases
         for alias in &entity.aliases {
@@ -81,11 +80,7 @@ impl StoryMemory {
     }
 
     /// Create and add a new entity.
-    pub fn create_entity(
-        &mut self,
-        entity_type: EntityType,
-        name: impl Into<String>,
-    ) -> EntityId {
+    pub fn create_entity(&mut self, entity_type: EntityType, name: impl Into<String>) -> EntityId {
         let entity = Entity::new(entity_type, name, self.current_turn);
         self.add_entity(entity)
     }
@@ -282,11 +277,7 @@ impl StoryMemory {
     }
 
     /// Find a specific relationship between two entities.
-    pub fn find_relationship(
-        &self,
-        from_id: EntityId,
-        to_id: EntityId,
-    ) -> Option<&Relationship> {
+    pub fn find_relationship(&self, from_id: EntityId, to_id: EntityId) -> Option<&Relationship> {
         self.relationships
             .iter()
             .find(|r| r.from_entity == from_id && r.to_entity == to_id && r.is_active)
@@ -316,10 +307,9 @@ impl StoryMemory {
         let mut found = Vec::new();
 
         for (name, &id) in &self.name_index {
-            if contains_word(&text_lower, name)
-                && !found.contains(&id) {
-                    found.push(id);
-                }
+            if contains_word(&text_lower, name) && !found.contains(&id) {
+                found.push(id);
+            }
         }
 
         found
@@ -353,8 +343,7 @@ fn contains_word(text: &str, word: &str) -> bool {
             let left_ok = i == 0 || !is_alphanumeric(text_bytes[i - 1]);
 
             // Check right boundary: end of string or non-alphanumeric
-            let right_ok =
-                i + word_len == text_len || !is_alphanumeric(text_bytes[i + word_len]);
+            let right_ok = i + word_len == text_len || !is_alphanumeric(text_bytes[i + word_len]);
 
             if left_ok && right_ok {
                 return true;
@@ -446,7 +435,10 @@ impl StoryMemory {
                 let rels = self.relationships_of(entity_id);
                 if !rels.is_empty() {
                     for rel in rels.iter().take(3) {
-                        if let Some(other) = self.entities.get(&rel.other(entity_id).unwrap_or(entity_id)) {
+                        if let Some(other) = self
+                            .entities
+                            .get(&rel.other(entity_id).unwrap_or(entity_id))
+                        {
                             if !rel.description.is_empty() {
                                 context.push_str(&format!(
                                     "- {} {} ({})\n",

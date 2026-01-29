@@ -264,7 +264,12 @@ impl CampaignExport {
             .iter()
             .filter(|f| f.category == FactCategory::NPC)
             .map(|f| NpcExport {
-                name: f.content.split(':').next().unwrap_or(&f.content).to_string(),
+                name: f
+                    .content
+                    .split(':')
+                    .next()
+                    .unwrap_or(&f.content)
+                    .to_string(),
                 relationship: f.content.clone(),
             })
             .collect();
@@ -283,8 +288,11 @@ impl CampaignExport {
             .iter()
             .take(20)
             .map(|n| {
-                if n.content.len() > 100 {
-                    format!("{}...", &n.content[..100])
+                // Use character count for unicode-safe truncation
+                let char_count = n.content.chars().count();
+                if char_count > 100 {
+                    let truncated: String = n.content.chars().take(100).collect();
+                    format!("{}...", truncated)
                 } else {
                     n.content.clone()
                 }

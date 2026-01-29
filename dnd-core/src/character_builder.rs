@@ -205,7 +205,9 @@ impl CharacterBuilder {
         let race = self.race.ok_or(BuilderError::MissingRace)?;
         let class = self.class.ok_or(BuilderError::MissingClass)?;
         let background = self.background.ok_or(BuilderError::MissingBackground)?;
-        let mut ability_scores = self.ability_scores.ok_or(BuilderError::MissingAbilityScores)?;
+        let mut ability_scores = self
+            .ability_scores
+            .ok_or(BuilderError::MissingAbilityScores)?;
 
         // Apply racial ability bonuses
         race.apply_ability_bonuses(&mut ability_scores);
@@ -318,7 +320,9 @@ pub fn roll_4d6_drop_lowest() -> u8 {
 pub fn roll_ability_scores() -> [u8; 6] {
     let mut scores: Vec<u8> = (0..6).map(|_| roll_4d6_drop_lowest()).collect();
     scores.sort_by(|a, b| b.cmp(a)); // Sort descending
-    [scores[0], scores[1], scores[2], scores[3], scores[4], scores[5]]
+    [
+        scores[0], scores[1], scores[2], scores[3], scores[4], scores[5],
+    ]
 }
 
 /// Validate point buy scores.
@@ -375,7 +379,7 @@ mod tests {
         // STR 15, CON 14 + 2 (dwarf) = 16
         assert_eq!(character.ability_scores.strength, 15);
         assert_eq!(character.ability_scores.constitution, 16); // 14 + 2 dwarf
-        // HP = 10 (fighter) + 3 (CON mod) = 13
+                                                               // HP = 10 (fighter) + 3 (CON mod) = 13
         assert_eq!(character.hit_points.maximum, 13);
     }
 
@@ -402,7 +406,7 @@ mod tests {
         // Human gets +1 to all
         assert_eq!(character.ability_scores.intelligence, 16); // 15 + 1
         assert_eq!(character.ability_scores.constitution, 15); // 14 + 1
-        // HP = 6 (wizard) + 2 (CON mod) = 8
+                                                               // HP = 6 (wizard) + 2 (CON mod) = 8
         assert_eq!(character.hit_points.maximum, 8);
     }
 

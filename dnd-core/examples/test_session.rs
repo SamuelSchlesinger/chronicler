@@ -11,10 +11,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = SessionConfig::new("Test Campaign")
         .with_character_name("Thorin")
         .with_starting_location("The Rusty Dragon Inn");
-    
+
     let mut session = GameSession::new(config).await?;
     println!("   Session created successfully");
-    
+
     // Test 2: Check world state
     println!("\n2. Checking world state...");
     let world = session.world();
@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Effects count: {}", response.effects.len());
     println!("   In combat: {}", response.in_combat);
     println!("   Player action processed successfully");
-    
+
     // Print a snippet of the narrative
     println!("\n4. DM Response (first 500 chars):");
     println!("   ---");

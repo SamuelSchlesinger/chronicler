@@ -266,9 +266,9 @@ pub fn assert_not_in_combat(harness: &TestHarness) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rules::Intent;
     use crate::dice::Advantage;
     use crate::rules::DamageType;
+    use crate::rules::Intent;
     use crate::world::Skill;
 
     #[test]

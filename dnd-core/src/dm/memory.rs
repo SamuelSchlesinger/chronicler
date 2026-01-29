@@ -168,7 +168,8 @@ impl DmMemory {
         summary.push_str(&format!("Session with {} exchanges.\n", message_count / 2));
 
         // Include last few player actions
-        let player_actions: Vec<_> = self.recent_messages
+        let player_actions: Vec<_> = self
+            .recent_messages
             .iter()
             .filter(|m| matches!(m.role, MessageRole::User))
             .map(|m| &m.content)
@@ -179,9 +180,11 @@ impl DmMemory {
         if !player_actions.is_empty() {
             summary.push_str("Recent player actions:\n");
             for action in player_actions.iter().rev() {
-                // Truncate long messages
-                let truncated = if action.len() > 100 {
-                    format!("{}...", &action[..100])
+                // Truncate long messages (unicode-safe)
+                let char_count = action.chars().count();
+                let truncated = if char_count > 100 {
+                    let truncated_str: String = action.chars().take(100).collect();
+                    format!("{}...", truncated_str)
                 } else {
                     action.to_string()
                 };

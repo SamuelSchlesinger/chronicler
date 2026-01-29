@@ -238,10 +238,7 @@ impl GameSession {
     pub async fn save(&self, path: impl AsRef<Path>) -> Result<(), SessionError> {
         let saved = SavedSession {
             world: self.world.clone(),
-            campaign_facts: self
-                .dm
-                .memory()
-                .campaign_facts.to_vec(),
+            campaign_facts: self.dm.memory().campaign_facts.to_vec(),
             conversation_summary: Some(self.dm.memory().generate_summary()),
             story_memory: Some(self.dm.story_memory().clone()),
         };
@@ -256,6 +253,41 @@ impl GameSession {
     /// This is the main gameplay loop entry point.
     pub async fn player_action(&mut self, input: &str) -> Result<Response, SessionError> {
         let dm_response = self.dm.process_input(input, &mut self.world).await?;
+
+        let in_combat = self.world.combat.is_some();
+        let is_player_turn = self
+            .world
+            .combat
+            .as_ref()
+            .and_then(|c| c.current_combatant())
+            .map(|c| c.is_player)
+            .unwrap_or(false);
+
+        Ok(Response {
+            narrative: dm_response.narrative,
+            effects: dm_response.effects,
+            in_combat,
+            is_player_turn,
+        })
+    }
+
+    /// Process a player action with streaming text output.
+    ///
+    /// The callback is invoked with each text chunk as it arrives from the AI.
+    /// This provides a more responsive user experience as narrative text appears
+    /// progressively rather than all at once.
+    pub async fn player_action_streaming<F>(
+        &mut self,
+        input: &str,
+        on_text: F,
+    ) -> Result<Response, SessionError>
+    where
+        F: FnMut(&str) + Send,
+    {
+        let dm_response = self
+            .dm
+            .process_input_streaming(input, &mut self.world, on_text)
+            .await?;
 
         let in_combat = self.world.combat.is_some();
         let is_player_turn = self

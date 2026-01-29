@@ -55,8 +55,7 @@ impl EntityType {
 }
 
 /// A moment in the story timeline.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, Default)]
 pub struct StoryMoment {
     /// Turn number when this moment occurred.
     pub turn: u32,
@@ -73,7 +72,6 @@ impl StoryMoment {
         self.turn.abs_diff(other.turn) <= within_turns
     }
 }
-
 
 /// An entity tracked in story memory (NPC, location, item, etc.).
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -98,11 +96,7 @@ pub struct Entity {
 
 impl Entity {
     /// Create a new entity.
-    pub fn new(
-        entity_type: EntityType,
-        name: impl Into<String>,
-        current_turn: u32,
-    ) -> Self {
+    pub fn new(entity_type: EntityType, name: impl Into<String>, current_turn: u32) -> Self {
         let moment = StoryMoment::new(current_turn);
         Self {
             id: EntityId::new(),
@@ -143,7 +137,9 @@ impl Entity {
         if self.name.to_lowercase().contains(&query_lower) {
             return true;
         }
-        self.aliases.iter().any(|a| a.to_lowercase().contains(&query_lower))
+        self.aliases
+            .iter()
+            .any(|a| a.to_lowercase().contains(&query_lower))
     }
 
     /// Update the last seen moment.

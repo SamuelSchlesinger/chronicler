@@ -31,9 +31,13 @@
 //! }
 //! ```
 
-use crate::character_builder::{roll_ability_scores, AbilityMethod, CharacterBuilder, STANDARD_ARRAY};
+use crate::character_builder::{
+    roll_ability_scores, AbilityMethod, CharacterBuilder, STANDARD_ARRAY,
+};
 use crate::session::{GameSession, SessionConfig, SessionError};
-use crate::world::{Ability, AbilityScores, Background, Character, CharacterClass, Condition, RaceType};
+use crate::world::{
+    Ability, AbilityScores, Background, Character, CharacterClass, Condition, RaceType,
+};
 use std::path::Path;
 
 /// Configuration for a headless game session.
@@ -187,18 +191,102 @@ impl HeadlessConfig {
     fn class_ability_priority(&self) -> [Ability; 6] {
         use Ability::*;
         match self.class {
-            CharacterClass::Barbarian => [Strength, Constitution, Dexterity, Wisdom, Charisma, Intelligence],
-            CharacterClass::Bard => [Charisma, Dexterity, Constitution, Wisdom, Intelligence, Strength],
-            CharacterClass::Cleric => [Wisdom, Constitution, Strength, Charisma, Dexterity, Intelligence],
-            CharacterClass::Druid => [Wisdom, Constitution, Dexterity, Intelligence, Charisma, Strength],
-            CharacterClass::Fighter => [Strength, Constitution, Dexterity, Wisdom, Charisma, Intelligence],
-            CharacterClass::Monk => [Dexterity, Wisdom, Constitution, Strength, Charisma, Intelligence],
-            CharacterClass::Paladin => [Strength, Charisma, Constitution, Wisdom, Dexterity, Intelligence],
-            CharacterClass::Ranger => [Dexterity, Wisdom, Constitution, Strength, Intelligence, Charisma],
-            CharacterClass::Rogue => [Dexterity, Constitution, Charisma, Intelligence, Wisdom, Strength],
-            CharacterClass::Sorcerer => [Charisma, Constitution, Dexterity, Wisdom, Intelligence, Strength],
-            CharacterClass::Warlock => [Charisma, Constitution, Dexterity, Wisdom, Intelligence, Strength],
-            CharacterClass::Wizard => [Intelligence, Constitution, Dexterity, Wisdom, Charisma, Strength],
+            CharacterClass::Barbarian => [
+                Strength,
+                Constitution,
+                Dexterity,
+                Wisdom,
+                Charisma,
+                Intelligence,
+            ],
+            CharacterClass::Bard => [
+                Charisma,
+                Dexterity,
+                Constitution,
+                Wisdom,
+                Intelligence,
+                Strength,
+            ],
+            CharacterClass::Cleric => [
+                Wisdom,
+                Constitution,
+                Strength,
+                Charisma,
+                Dexterity,
+                Intelligence,
+            ],
+            CharacterClass::Druid => [
+                Wisdom,
+                Constitution,
+                Dexterity,
+                Intelligence,
+                Charisma,
+                Strength,
+            ],
+            CharacterClass::Fighter => [
+                Strength,
+                Constitution,
+                Dexterity,
+                Wisdom,
+                Charisma,
+                Intelligence,
+            ],
+            CharacterClass::Monk => [
+                Dexterity,
+                Wisdom,
+                Constitution,
+                Strength,
+                Charisma,
+                Intelligence,
+            ],
+            CharacterClass::Paladin => [
+                Strength,
+                Charisma,
+                Constitution,
+                Wisdom,
+                Dexterity,
+                Intelligence,
+            ],
+            CharacterClass::Ranger => [
+                Dexterity,
+                Wisdom,
+                Constitution,
+                Strength,
+                Intelligence,
+                Charisma,
+            ],
+            CharacterClass::Rogue => [
+                Dexterity,
+                Constitution,
+                Charisma,
+                Intelligence,
+                Wisdom,
+                Strength,
+            ],
+            CharacterClass::Sorcerer => [
+                Charisma,
+                Constitution,
+                Dexterity,
+                Wisdom,
+                Intelligence,
+                Strength,
+            ],
+            CharacterClass::Warlock => [
+                Charisma,
+                Constitution,
+                Dexterity,
+                Wisdom,
+                Intelligence,
+                Strength,
+            ],
+            CharacterClass::Wizard => [
+                Intelligence,
+                Constitution,
+                Dexterity,
+                Wisdom,
+                Charisma,
+                Strength,
+            ],
         }
     }
 }
@@ -397,9 +485,14 @@ mod tests {
 
     #[test]
     fn test_custom_config() {
-        let config = HeadlessConfig::custom("Elara", RaceType::Elf, CharacterClass::Wizard, Background::Sage)
-            .with_campaign_name("The Lost Library")
-            .with_starting_location("The Academy");
+        let config = HeadlessConfig::custom(
+            "Elara",
+            RaceType::Elf,
+            CharacterClass::Wizard,
+            Background::Sage,
+        )
+        .with_campaign_name("The Lost Library")
+        .with_starting_location("The Academy");
 
         assert_eq!(config.name, "Elara");
         assert!(matches!(config.race, RaceType::Elf));

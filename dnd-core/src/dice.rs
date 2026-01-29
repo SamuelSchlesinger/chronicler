@@ -184,8 +184,7 @@ impl DiceExpression {
                 .parse()
                 .map_err(|_| DiceError::InvalidNotation(s.to_string()))?;
 
-            let die_type =
-                DieType::from_sides(sides).ok_or(DiceError::InvalidDieSize(sides))?;
+            let die_type = DieType::from_sides(sides).ok_or(DiceError::InvalidDieSize(sides))?;
 
             components.push(DiceComponent {
                 count,
@@ -243,13 +242,20 @@ impl DiceExpression {
         let dice_total: i32 = component_results.iter().map(|c| c.subtotal as i32).sum();
         let total = dice_total + self.modifier;
 
+        // Find the d20 result for natural 20/1 detection
+        // (only matters for single d20 components, used in attack rolls)
+        let d20_roll = component_results
+            .iter()
+            .find(|c| c.die_type == DieType::D20 && c.rolls.len() == 1)
+            .and_then(|c| c.rolls.first().copied());
+
         RollResult {
             expression: self.clone(),
             component_results,
             modifier: self.modifier,
             total,
-            natural_20: self.is_d20() && all_rolls.first() == Some(&20),
-            natural_1: self.is_d20() && all_rolls.first() == Some(&1),
+            natural_20: d20_roll == Some(20),
+            natural_1: d20_roll == Some(1),
         }
     }
 
@@ -271,10 +277,18 @@ impl DiceExpression {
 
                 let (chosen, _other) = match advantage {
                     Advantage::Advantage => {
-                        if roll1 >= roll2 { (roll1, roll2) } else { (roll2, roll1) }
+                        if roll1 >= roll2 {
+                            (roll1, roll2)
+                        } else {
+                            (roll2, roll1)
+                        }
                     }
                     Advantage::Disadvantage => {
-                        if roll1 <= roll2 { (roll1, roll2) } else { (roll2, roll1) }
+                        if roll1 <= roll2 {
+                            (roll1, roll2)
+                        } else {
+                            (roll2, roll1)
+                        }
                     }
                     Advantage::Normal => unreachable!(),
                 };
@@ -302,12 +316,6 @@ impl DiceExpression {
         self.components.len() == 1
             && self.components[0].count == 1
             && self.components[0].die_type == DieType::D20
-    }
-
-    fn is_d20(&self) -> bool {
-        self.components
-            .iter()
-            .any(|c| c.die_type == DieType::D20 && c.count == 1)
     }
 }
 
@@ -376,7 +384,11 @@ impl RollResult {
                 } else {
                     format!(
                         "[{}]",
-                        c.rolls.iter().map(|r| r.to_string()).collect::<Vec<_>>().join(", ")
+                        c.rolls
+                            .iter()
+                            .map(|r| r.to_string())
+                            .collect::<Vec<_>>()
+                            .join(", ")
                     )
                 }
             })
@@ -482,8 +494,17 @@ mod tests {
 
     #[test]
     fn test_advantage_combine() {
-        assert_eq!(Advantage::Normal.combine(Advantage::Advantage), Advantage::Advantage);
-        assert_eq!(Advantage::Advantage.combine(Advantage::Disadvantage), Advantage::Normal);
-        assert_eq!(Advantage::Advantage.combine(Advantage::Advantage), Advantage::Advantage);
+        assert_eq!(
+            Advantage::Normal.combine(Advantage::Advantage),
+            Advantage::Advantage
+        );
+        assert_eq!(
+            Advantage::Advantage.combine(Advantage::Disadvantage),
+            Advantage::Normal
+        );
+        assert_eq!(
+            Advantage::Advantage.combine(Advantage::Advantage),
+            Advantage::Advantage
+        );
     }
 }
