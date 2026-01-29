@@ -9,7 +9,7 @@ use agentic::llm::anthropic::AnthropicProvider;
 use agentic::message::Message;
 
 use crate::dnd::ai::dm_agent::DungeonMasterAgent;
-use crate::dnd::game::character::{create_sample_fighter, Character};
+use crate::dnd::game::character::{Character, create_sample_fighter};
 use crate::dnd::game::dice::{DiceExpression, RollResult};
 use crate::dnd::game::state::{GameWorld, NarrativeEntry, NarrativeType};
 use crate::dnd::ui::render::{FocusedPanel, Overlay};
@@ -135,7 +135,8 @@ impl AppState {
             NarrativeType::DmNarration,
         );
         state.add_narrative(
-            "Press 'i' to enter INSERT mode and type. Press '?' for help. Press ':' for commands.".to_string(),
+            "Press 'i' to enter INSERT mode and type. Press '?' for help. Press ':' for commands."
+                .to_string(),
             NarrativeType::System,
         );
 
@@ -463,11 +464,7 @@ impl AppState {
                 };
                 format!(
                     "{}: {} = {} vs DC {} - {}",
-                    purpose,
-                    expression,
-                    result.total,
-                    dc_val,
-                    outcome
+                    purpose, expression, result.total, dc_val, outcome
                 )
             } else {
                 format!("{}: {} = {}", purpose, expression, result.total)

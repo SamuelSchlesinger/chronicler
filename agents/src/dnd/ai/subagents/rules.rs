@@ -27,7 +27,10 @@ impl RulesAgent {
     pub fn new() -> Self {
         Self {
             id: AgentId::new(),
-            metadata: AgentMetadata::new("Rules Agent", "Specialist for D&D 5e rules lookup and adjudication"),
+            metadata: AgentMetadata::new(
+                "Rules Agent",
+                "Specialist for D&D 5e rules lookup and adjudication",
+            ),
             capabilities: Capabilities {
                 tool_use: false,
                 memory: true, // RAG-backed rules database
@@ -66,7 +69,11 @@ impl Agent for RulesAgent {
         &[]
     }
 
-    async fn process(&self, message: Message, _context: &mut Context) -> Result<Response, AgentError> {
+    async fn process(
+        &self,
+        message: Message,
+        _context: &mut Context,
+    ) -> Result<Response, AgentError> {
         let input = message.text_content();
 
         // This would:

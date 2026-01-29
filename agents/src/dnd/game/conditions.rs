@@ -228,7 +228,10 @@ pub enum ConditionDuration {
     /// Lasts until removed by specific means
     Indefinite,
     /// Ends at the start/end of a creature's turn
-    UntilTurn { creature_id: String, start_or_end: TurnTiming },
+    UntilTurn {
+        creature_id: String,
+        start_or_end: TurnTiming,
+    },
     /// Ends after a number of rounds
     Rounds(u32),
     /// Ends after a number of minutes

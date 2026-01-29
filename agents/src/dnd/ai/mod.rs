@@ -6,8 +6,8 @@
 //! - System prompts for D&D context
 
 pub mod dm_agent;
-pub mod tools;
 pub mod prompts;
 pub mod subagents;
+pub mod tools;
 
 pub use dm_agent::DungeonMasterAgent;

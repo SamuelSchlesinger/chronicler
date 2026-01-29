@@ -7,10 +7,10 @@
 //! - Animated dice rolls
 //! - Modal overlays
 
-pub mod theme;
 pub mod layout;
-pub mod widgets;
 pub mod render;
+pub mod theme;
+pub mod widgets;
 
-pub use theme::GameTheme;
 pub use render::render;
+pub use theme::GameTheme;

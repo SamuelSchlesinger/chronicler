@@ -25,8 +25,7 @@ impl Default for LocationId {
 }
 
 /// Current game mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum GameMode {
     /// Exploring, investigating, traveling
     #[default]
@@ -43,7 +42,6 @@ pub enum GameMode {
     CharacterManagement,
 }
 
-
 /// In-game time tracking
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GameTime {
@@ -56,7 +54,13 @@ pub struct GameTime {
 
 impl GameTime {
     pub fn new(year: i32, month: u8, day: u8, hour: u8, minute: u8) -> Self {
-        Self { year, month, day, hour, minute }
+        Self {
+            year,
+            month,
+            day,
+            hour,
+            minute,
+        }
     }
 
     /// Advance time by minutes
@@ -414,11 +418,7 @@ impl GameWorld {
 
     /// Get recent narrative for context
     pub fn recent_narrative(&self, count: usize) -> Vec<&NarrativeEntry> {
-        self.narrative_history
-            .iter()
-            .rev()
-            .take(count)
-            .collect()
+        self.narrative_history.iter().rev().take(count).collect()
     }
 }
 

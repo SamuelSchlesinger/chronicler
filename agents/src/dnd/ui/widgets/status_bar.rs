@@ -25,7 +25,12 @@ pub struct StatusBarWidget<'a> {
 }
 
 impl<'a> StatusBarWidget<'a> {
-    pub fn new(character: &'a Character, game_mode: GameMode, input_mode: InputMode, theme: &'a GameTheme) -> Self {
+    pub fn new(
+        character: &'a Character,
+        game_mode: GameMode,
+        input_mode: InputMode,
+        theme: &'a GameTheme,
+    ) -> Self {
         Self {
             character,
             game_mode,
@@ -85,9 +90,24 @@ impl Widget for StatusBarWidget<'_> {
 
         // Input mode indicator (vim-style)
         let (input_mode_text, input_mode_style) = match self.input_mode {
-            InputMode::Normal => ("NORMAL", Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)),
-            InputMode::Insert => ("INSERT", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-            InputMode::Command => ("COMMAND", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            InputMode::Normal => (
+                "NORMAL",
+                Style::default()
+                    .fg(Color::Blue)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            InputMode::Insert => (
+                "INSERT",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            InputMode::Command => (
+                "COMMAND",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
         };
 
         let mut spans = vec![
@@ -107,7 +127,9 @@ impl Widget for StatusBarWidget<'_> {
             spans.push(Span::raw(" | "));
             spans.push(Span::styled(
                 format!("{spinner} DM thinking..."),
-                Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::BOLD),
             ));
         } else if let Some(msg) = self.message {
             // Add message if present (only when not processing)
@@ -133,7 +155,11 @@ pub struct HotkeyBarWidget<'a> {
 
 impl<'a> HotkeyBarWidget<'a> {
     pub fn new(game_mode: GameMode, input_mode: InputMode, theme: &'a GameTheme) -> Self {
-        Self { game_mode, input_mode, _theme: theme }
+        Self {
+            game_mode,
+            input_mode,
+            _theme: theme,
+        }
     }
 }
 

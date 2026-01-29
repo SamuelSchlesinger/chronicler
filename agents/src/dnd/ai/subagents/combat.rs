@@ -67,7 +67,11 @@ impl Agent for CombatAgent {
         &[]
     }
 
-    async fn process(&self, message: Message, _context: &mut Context) -> Result<Response, AgentError> {
+    async fn process(
+        &self,
+        message: Message,
+        _context: &mut Context,
+    ) -> Result<Response, AgentError> {
         // Combat-focused processing
         let input = message.text_content();
 

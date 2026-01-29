@@ -6,16 +6,16 @@
 //! - Combat tracking with initiative
 //! - World state management
 
-pub mod dice;
 pub mod character;
 pub mod combat;
-pub mod state;
 pub mod conditions;
+pub mod dice;
 pub mod skills;
+pub mod state;
 
-pub use dice::{DiceRoll, DiceExpression, RollResult, Advantage};
-pub use character::{Character, AbilityScores, Ability, HitPoints};
-pub use combat::{CombatState, InitiativeEntry, CombatantStatus};
-pub use state::{GameWorld, GameMode, Location};
+pub use character::{Ability, AbilityScores, Character, HitPoints};
+pub use combat::{CombatState, CombatantStatus, InitiativeEntry};
 pub use conditions::Condition;
+pub use dice::{Advantage, DiceExpression, DiceRoll, RollResult};
 pub use skills::Skill;
+pub use state::{GameMode, GameWorld, Location};

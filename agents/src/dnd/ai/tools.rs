@@ -2,13 +2,13 @@
 
 use async_trait::async_trait;
 use once_cell::sync::Lazy;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-use agentic::tool::{Tool, ToolAnnotations, ToolContext, ToolOutput};
 use agentic::error::ToolError;
 use agentic::id::ToolCallId;
+use agentic::tool::{Tool, ToolAnnotations, ToolContext, ToolOutput};
 
-use crate::dnd::game::dice::{roll_with_advantage, Advantage};
+use crate::dnd::game::dice::{Advantage, roll_with_advantage};
 
 // Static schemas and annotations
 
@@ -172,12 +172,13 @@ impl Tool for RollDiceTool {
     }
 
     async fn execute(&self, params: Value, _ctx: &ToolContext) -> Result<ToolOutput, ToolError> {
-        let expression = params["expression"]
-            .as_str()
-            .ok_or_else(|| ToolError::InvalidParameters {
-                tool: self.name().to_string(),
-                reason: "Missing 'expression' parameter".to_string(),
-            })?;
+        let expression =
+            params["expression"]
+                .as_str()
+                .ok_or_else(|| ToolError::InvalidParameters {
+                    tool: self.name().to_string(),
+                    reason: "Missing 'expression' parameter".to_string(),
+                })?;
 
         let purpose = params["purpose"]
             .as_str()
@@ -195,12 +196,11 @@ impl Tool for RollDiceTool {
         let dc = params["dc"].as_i64().map(|d| d as i32);
 
         // Roll the dice
-        let result = roll_with_advantage(expression, advantage).map_err(|e| {
-            ToolError::ExecutionFailed {
+        let result =
+            roll_with_advantage(expression, advantage).map_err(|e| ToolError::ExecutionFailed {
                 tool_call_id: ToolCallId::new(),
                 reason: e.to_string(),
-            }
-        })?;
+            })?;
 
         // Build output
         let mut output_text = format!(
@@ -296,7 +296,10 @@ impl Tool for SkillCheckTool {
                     reason: e.to_string(),
                 }
             })?;
-            (result.total, format!("{} = {}", result.dice_display(), result.total))
+            (
+                result.total,
+                format!("{} = {}", result.dice_display(), result.total),
+            )
         };
 
         let success = total >= dc;
@@ -420,9 +423,7 @@ impl Tool for ApplyDamageTool {
         let damage_type = params["damage_type"].as_str().unwrap_or("untyped");
 
         // In a real implementation, this would modify the game state
-        let output_text = format!(
-            "{target} takes {amount} {damage_type} damage!"
-        );
+        let output_text = format!("{target} takes {amount} {damage_type} damage!");
 
         Ok(ToolOutput::structured(
             output_text,

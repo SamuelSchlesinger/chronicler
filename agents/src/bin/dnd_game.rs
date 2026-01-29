@@ -9,7 +9,7 @@ use std::time::Duration;
 use crossterm::{
     event::{self},
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::prelude::*;
 use tokio::sync::mpsc;
@@ -17,7 +17,7 @@ use tokio::sync::mpsc;
 use agentic::llm::anthropic::AnthropicProvider;
 
 use agents::dnd::app::{AiRequest, AiResponse, AppState};
-use agents::dnd::events::{handle_event, EventResult};
+use agents::dnd::events::{EventResult, handle_event};
 use agents::dnd::ui::render::render;
 
 #[tokio::main]

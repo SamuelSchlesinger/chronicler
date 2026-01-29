@@ -360,10 +360,7 @@ fn process_colon_command(state: &mut AppState, command: &str) {
                 );
             } else {
                 state.game.short_rest();
-                state.add_narrative(
-                    "You take a short rest.".to_string(),
-                    NarrativeType::System,
-                );
+                state.add_narrative("You take a short rest.".to_string(), NarrativeType::System);
             }
         }
         _ => {

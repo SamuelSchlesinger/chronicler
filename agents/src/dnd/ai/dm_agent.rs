@@ -6,15 +6,17 @@ use async_trait::async_trait;
 
 use agentic::agent::{Agent, AgentMetadata, Capabilities, Context, Response};
 use agentic::error::{AgentError, ToolError};
-use agentic::tool::ToolOutput;
 use agentic::id::AgentId;
 use agentic::llm::anthropic::AnthropicProvider;
 use agentic::llm::{CompletionRequest, LlmProvider, StopReason, ToolChoice};
 use agentic::message::{ContentBlock, Message, Role};
+use agentic::tool::ToolOutput;
 use agentic::tool::{Tool, ToolContext, ToolRegistry};
 
 use super::prompts::build_dm_system_prompt;
-use super::tools::{ApplyDamageTool, ApplyHealingTool, RollDiceTool, SavingThrowTool, SkillCheckTool};
+use super::tools::{
+    ApplyDamageTool, ApplyHealingTool, RollDiceTool, SavingThrowTool, SkillCheckTool,
+};
 use crate::dnd::game::state::GameWorld;
 
 /// The main Dungeon Master agent
@@ -99,13 +101,11 @@ impl DungeonMasterAgent {
         let max_iterations = 10;
 
         for _ in 0..max_iterations {
-            let response = self
-                .llm
-                .complete(request.clone())
-                .await
-                .map_err(|e| AgentError::ProcessingFailed {
+            let response = self.llm.complete(request.clone()).await.map_err(|e| {
+                AgentError::ProcessingFailed {
                     reason: e.to_string(),
-                })?;
+                }
+            })?;
 
             // Check if we need to execute tools
             if response.stop_reason == StopReason::ToolUse {
@@ -162,11 +162,12 @@ impl DungeonMasterAgent {
         tool_name: &str,
         input: serde_json::Value,
     ) -> Result<ToolOutput, ToolError> {
-        let tool = self.tools.get(tool_name).ok_or_else(|| {
-            ToolError::NotFound {
+        let tool = self
+            .tools
+            .get(tool_name)
+            .ok_or_else(|| ToolError::NotFound {
                 name: tool_name.to_string(),
-            }
-        })?;
+            })?;
 
         let ctx = ToolContext::default();
         tool.execute(input, &ctx).await
@@ -192,7 +193,11 @@ impl Agent for DungeonMasterAgent {
         &[]
     }
 
-    async fn process(&self, message: Message, _context: &mut Context) -> Result<Response, AgentError> {
+    async fn process(
+        &self,
+        message: Message,
+        _context: &mut Context,
+    ) -> Result<Response, AgentError> {
         // This would integrate with the full context management
         // For now, create a simple response
         let response_text = format!("Received: {}", message.text_content());

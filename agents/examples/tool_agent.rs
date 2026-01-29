@@ -12,7 +12,7 @@ use agentic::llm::{CompletionRequest, LlmProvider, StopReason, ToolChoice};
 use agentic::message::{ContentBlock, Message, Role};
 use agentic::tool::{Tool, ToolAnnotations, ToolContext, ToolDefinition, ToolOutput};
 use async_trait::async_trait;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::io::{self, Write};
 
 /// A simple calculator tool
@@ -62,23 +62,32 @@ impl Tool for CalculatorTool {
         true
     }
 
-    async fn execute(&self, params: Value, _context: &ToolContext) -> Result<ToolOutput, ToolError> {
-        let operation = params["operation"]
-            .as_str()
+    async fn execute(
+        &self,
+        params: Value,
+        _context: &ToolContext,
+    ) -> Result<ToolOutput, ToolError> {
+        let operation =
+            params["operation"]
+                .as_str()
+                .ok_or_else(|| ToolError::InvalidParameters {
+                    tool: "calculator".to_string(),
+                    reason: "operation must be a string".to_string(),
+                })?;
+
+        let a = params["a"]
+            .as_f64()
             .ok_or_else(|| ToolError::InvalidParameters {
                 tool: "calculator".to_string(),
-                reason: "operation must be a string".to_string(),
+                reason: "a must be a number".to_string(),
             })?;
 
-        let a = params["a"].as_f64().ok_or_else(|| ToolError::InvalidParameters {
-            tool: "calculator".to_string(),
-            reason: "a must be a number".to_string(),
-        })?;
-
-        let b = params["b"].as_f64().ok_or_else(|| ToolError::InvalidParameters {
-            tool: "calculator".to_string(),
-            reason: "b must be a number".to_string(),
-        })?;
+        let b = params["b"]
+            .as_f64()
+            .ok_or_else(|| ToolError::InvalidParameters {
+                tool: "calculator".to_string(),
+                reason: "b must be a number".to_string(),
+            })?;
 
         let result = match operation {
             "add" => a + b,
@@ -138,7 +147,11 @@ impl Tool for GetTimeTool {
         true
     }
 
-    async fn execute(&self, _params: Value, _context: &ToolContext) -> Result<ToolOutput, ToolError> {
+    async fn execute(
+        &self,
+        _params: Value,
+        _context: &ToolContext,
+    ) -> Result<ToolOutput, ToolError> {
         let now = chrono::Utc::now();
         Ok(ToolOutput::text(format!(
             "Current UTC time: {}",

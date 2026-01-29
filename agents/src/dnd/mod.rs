@@ -15,10 +15,10 @@
 //! - `ui` - Terminal user interface with ratatui
 //! - `ai` - DM agent and subagent implementations
 
-pub mod game;
-pub mod ui;
 pub mod ai;
 pub mod app;
 pub mod events;
+pub mod game;
+pub mod ui;
 
 pub use app::AppState;

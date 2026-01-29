@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use once_cell::sync::Lazy;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use agentic::agent::{Agent, Context};
 use agentic::error::ToolError;
@@ -58,7 +58,11 @@ pub struct SubagentTool {
 }
 
 impl SubagentTool {
-    pub fn new(name: impl Into<String>, description: impl Into<String>, agent: Arc<dyn Agent>) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        description: impl Into<String>,
+        agent: Arc<dyn Agent>,
+    ) -> Self {
         Self {
             name: name.into(),
             description: description.into(),

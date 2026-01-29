@@ -669,7 +669,10 @@ pub struct Inventory {
 
 impl Inventory {
     pub fn total_weight(&self) -> f32 {
-        self.items.iter().map(|i| i.weight * i.quantity as f32).sum()
+        self.items
+            .iter()
+            .map(|i| i.weight * i.quantity as f32)
+            .sum()
     }
 
     pub fn total_gold_value(&self) -> f32 {

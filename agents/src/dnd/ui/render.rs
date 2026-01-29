@@ -1,14 +1,14 @@
 //! Main render function for the D&D TUI
 
 use ratatui::{
+    Frame,
     layout::Rect,
     style::{Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 
-use super::layout::{centered_rect, AppLayout};
+use super::layout::{AppLayout, centered_rect};
 use super::widgets::*;
 use crate::dnd::app::AppState;
 use crate::dnd::game::state::GameMode;
@@ -58,9 +58,14 @@ fn render_exploration_mode(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(char_panel, layout.sidebar_area);
 
     // Status bar
-    let status = StatusBarWidget::new(&state.game.player_character, state.game.mode, state.input_mode, theme)
-        .message(state.status_message.as_deref())
-        .ai_processing(state.ai_processing, state.animation_frame);
+    let status = StatusBarWidget::new(
+        &state.game.player_character,
+        state.game.mode,
+        state.input_mode,
+        theme,
+    )
+    .message(state.status_message.as_deref())
+    .ai_processing(state.ai_processing, state.animation_frame);
     frame.render_widget(status, layout.status_bar);
 
     // Hotkey bar
@@ -68,8 +73,7 @@ fn render_exploration_mode(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(hotkeys, layout.hotkey_bar);
 
     // Input field
-    let input = InputWidget::new(&state.input_buffer, theme)
-        .cursor_position(state.cursor_position);
+    let input = InputWidget::new(&state.input_buffer, theme).cursor_position(state.cursor_position);
     frame.render_widget(input, layout.input_area);
 }
 
@@ -109,9 +113,14 @@ fn render_combat_mode(frame: &mut Frame, area: Rect, state: &AppState) {
     }
 
     // Status bar (with combat actions remaining)
-    let status = StatusBarWidget::new(&state.game.player_character, state.game.mode, state.input_mode, theme)
-        .message(state.status_message.as_deref())
-        .ai_processing(state.ai_processing, state.animation_frame);
+    let status = StatusBarWidget::new(
+        &state.game.player_character,
+        state.game.mode,
+        state.input_mode,
+        theme,
+    )
+    .message(state.status_message.as_deref())
+    .ai_processing(state.ai_processing, state.animation_frame);
     frame.render_widget(status, layout.status_bar);
 
     // Hotkey bar (combat actions)
@@ -119,8 +128,7 @@ fn render_combat_mode(frame: &mut Frame, area: Rect, state: &AppState) {
     frame.render_widget(hotkeys, layout.hotkey_bar);
 
     // Input field
-    let input = InputWidget::new(&state.input_buffer, theme)
-        .cursor_position(state.cursor_position);
+    let input = InputWidget::new(&state.input_buffer, theme).cursor_position(state.cursor_position);
     frame.render_widget(input, layout.input_area);
 }
 
@@ -149,9 +157,11 @@ fn render_title_bar(frame: &mut Frame, area: Rect, state: &AppState) {
 fn render_overlay(frame: &mut Frame, area: Rect, state: &AppState, overlay: &Overlay) {
     match overlay {
         Overlay::Help => render_help_overlay(frame, area, state),
-        Overlay::DiceRoll { result, purpose, dc } => {
-            render_dice_overlay(frame, area, state, result, purpose, *dc)
-        }
+        Overlay::DiceRoll {
+            result,
+            purpose,
+            dc,
+        } => render_dice_overlay(frame, area, state, result, purpose, *dc),
         _ => {}
     }
 }

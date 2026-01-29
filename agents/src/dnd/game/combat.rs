@@ -364,14 +364,40 @@ pub enum CombatLogType {
     CombatStart,
     CombatEnd,
     RoundStart,
-    TurnStart { character: String },
-    TurnEnd { character: String },
-    Attack { attacker: String, target: String, hit: bool, damage: Option<i32> },
-    Spell { caster: String, spell: String },
-    Movement { character: String },
-    Healing { target: String, amount: i32 },
-    Condition { target: String, condition: String, applied: bool },
-    DeathSave { character: String, success: bool },
-    Death { character: String },
+    TurnStart {
+        character: String,
+    },
+    TurnEnd {
+        character: String,
+    },
+    Attack {
+        attacker: String,
+        target: String,
+        hit: bool,
+        damage: Option<i32>,
+    },
+    Spell {
+        caster: String,
+        spell: String,
+    },
+    Movement {
+        character: String,
+    },
+    Healing {
+        target: String,
+        amount: i32,
+    },
+    Condition {
+        target: String,
+        condition: String,
+        applied: bool,
+    },
+    DeathSave {
+        character: String,
+        success: bool,
+    },
+    Death {
+        character: String,
+    },
     Other,
 }

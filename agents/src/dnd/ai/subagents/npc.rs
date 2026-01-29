@@ -27,7 +27,10 @@ impl NPCAgent {
     pub fn new() -> Self {
         Self {
             id: AgentId::new(),
-            metadata: AgentMetadata::new("NPC Agent", "Specialist for NPC interactions and dialogue"),
+            metadata: AgentMetadata::new(
+                "NPC Agent",
+                "Specialist for NPC interactions and dialogue",
+            ),
             capabilities: Capabilities {
                 tool_use: false,
                 memory: true,
@@ -66,7 +69,11 @@ impl Agent for NPCAgent {
         &[]
     }
 
-    async fn process(&self, message: Message, _context: &mut Context) -> Result<Response, AgentError> {
+    async fn process(
+        &self,
+        message: Message,
+        _context: &mut Context,
+    ) -> Result<Response, AgentError> {
         let input = message.text_content();
 
         // This would:
@@ -74,7 +81,9 @@ impl Agent for NPCAgent {
         // 2. Generate in-character dialogue
         // 3. Track relationship changes
 
-        Ok(Response::text(format!("[NPC] Processing dialogue: {input}")))
+        Ok(Response::text(format!(
+            "[NPC] Processing dialogue: {input}"
+        )))
     }
 
     async fn initialize(&mut self) -> Result<(), AgentError> {

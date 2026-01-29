@@ -19,21 +19,18 @@ impl AppLayout {
         let main_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(1),  // Title bar
-                Constraint::Min(8),     // Main content
-                Constraint::Length(1),  // Status bar
-                Constraint::Length(1),  // Hotkey bar
-                Constraint::Length(3),  // Input area
+                Constraint::Length(1), // Title bar
+                Constraint::Min(8),    // Main content
+                Constraint::Length(1), // Status bar
+                Constraint::Length(1), // Hotkey bar
+                Constraint::Length(3), // Input area
             ])
             .split(area);
 
         // Content area: narrative + sidebar
         let content_chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(70),
-                Constraint::Percentage(30),
-            ])
+            .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
             .split(main_chunks[1]);
 
         Self {
@@ -51,30 +48,24 @@ impl AppLayout {
         let main_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(1),  // Title
-                Constraint::Min(8),     // Content
-                Constraint::Length(3),  // Status
-                Constraint::Length(1),  // Hotkeys
-                Constraint::Length(3),  // Input
+                Constraint::Length(1), // Title
+                Constraint::Min(8),    // Content
+                Constraint::Length(3), // Status
+                Constraint::Length(1), // Hotkeys
+                Constraint::Length(3), // Input
             ])
             .split(area);
 
         // Combat content: narrative + tracker
         let content_chunks = Layout::default()
             .direction(Direction::Horizontal)
-            .constraints([
-                Constraint::Percentage(65),
-                Constraint::Percentage(35),
-            ])
+            .constraints([Constraint::Percentage(65), Constraint::Percentage(35)])
             .split(main_chunks[1]);
 
         // Split tracker into initiative and enemy HP
         let tracker_chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Percentage(50),
-                Constraint::Percentage(50),
-            ])
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(content_chunks[1]);
 
         CombatLayout {
