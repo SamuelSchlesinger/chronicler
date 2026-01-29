@@ -78,6 +78,17 @@ impl Ability {
         }
     }
 
+    pub fn name(&self) -> &'static str {
+        match self {
+            Ability::Strength => "Strength",
+            Ability::Dexterity => "Dexterity",
+            Ability::Constitution => "Constitution",
+            Ability::Intelligence => "Intelligence",
+            Ability::Wisdom => "Wisdom",
+            Ability::Charisma => "Charisma",
+        }
+    }
+
     pub fn all() -> [Ability; 6] {
         [
             Ability::Strength,
@@ -607,6 +618,59 @@ impl CharacterClass {
             CharacterClass::Wizard => "Wizard",
         }
     }
+
+    /// Returns true if this class has spellcasting at level 1.
+    pub fn is_spellcaster(&self) -> bool {
+        matches!(
+            self,
+            CharacterClass::Bard
+                | CharacterClass::Cleric
+                | CharacterClass::Druid
+                | CharacterClass::Sorcerer
+                | CharacterClass::Warlock
+                | CharacterClass::Wizard
+        )
+        // Note: Paladin and Ranger get spellcasting at level 2, not level 1
+    }
+
+    /// Returns the spellcasting ability for this class, if any.
+    pub fn spellcasting_ability(&self) -> Option<Ability> {
+        match self {
+            CharacterClass::Bard | CharacterClass::Sorcerer | CharacterClass::Warlock => {
+                Some(Ability::Charisma)
+            }
+            CharacterClass::Cleric | CharacterClass::Druid | CharacterClass::Ranger => {
+                Some(Ability::Wisdom)
+            }
+            CharacterClass::Wizard => Some(Ability::Intelligence),
+            CharacterClass::Paladin => Some(Ability::Charisma),
+            _ => None,
+        }
+    }
+
+    /// Returns the number of cantrips known at level 1.
+    pub fn cantrips_known_at_level_1(&self) -> usize {
+        match self {
+            CharacterClass::Bard => 2,
+            CharacterClass::Cleric => 3,
+            CharacterClass::Druid => 2,
+            CharacterClass::Sorcerer => 4,
+            CharacterClass::Warlock => 2,
+            CharacterClass::Wizard => 3,
+            _ => 0,
+        }
+    }
+
+    /// Returns the number of spells known at level 1 (for classes that learn specific spells).
+    pub fn spells_known_at_level_1(&self) -> usize {
+        match self {
+            CharacterClass::Bard => 4,
+            CharacterClass::Sorcerer => 2,
+            CharacterClass::Warlock => 2,
+            CharacterClass::Wizard => 6, // Spellbook spells
+            _ => 0, // Clerics and Druids prepare from entire list
+        }
+    }
 }
 
 impl fmt::Display for CharacterClass {
@@ -645,6 +709,143 @@ pub enum RechargeType {
     ShortRest,
     LongRest,
     Dawn,
+}
+
+// ============================================================================
+// Class Resources
+// ============================================================================
+
+/// Tracks class-specific resources that need to be managed separately
+/// from general features due to their special mechanics.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ClassResources {
+    // Barbarian
+    /// Whether the character is currently raging
+    pub rage_active: bool,
+    /// Rounds remaining in current rage (rage ends after 1 minute = 10 rounds)
+    pub rage_rounds_remaining: Option<u8>,
+
+    // Monk
+    /// Current ki points (called "Monk's Focus" in SRD 5.2)
+    pub ki_points: u8,
+    /// Maximum ki points (equals Monk level)
+    pub max_ki_points: u8,
+
+    // Druid
+    /// Current Wild Shape form (None if not transformed)
+    pub wild_shape_form: Option<String>,
+    /// Remaining HP in Wild Shape form
+    pub wild_shape_hp: Option<i32>,
+
+    // Paladin
+    /// Current Lay on Hands pool (max = 5 × Paladin level)
+    pub lay_on_hands_pool: u32,
+    /// Maximum Lay on Hands pool
+    pub lay_on_hands_max: u32,
+
+    // Sorcerer
+    /// Current sorcery points
+    pub sorcery_points: u8,
+    /// Maximum sorcery points (equals Sorcerer level)
+    pub max_sorcery_points: u8,
+
+    // Fighter
+    /// Whether Action Surge has been used this short rest
+    pub action_surge_used: bool,
+    /// Whether Second Wind has been used this short rest
+    pub second_wind_used: bool,
+
+    // Wizard
+    /// Spell slot levels recovered via Arcane Recovery today
+    pub arcane_recovery_used: u8,
+}
+
+impl ClassResources {
+    /// Create default class resources
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Initialize resources for a specific class at a given level
+    pub fn initialize_for_class(&mut self, class: CharacterClass, level: u8) {
+        match class {
+            CharacterClass::Barbarian => {
+                // Rage uses are tracked via Feature, but we track active state
+                self.rage_active = false;
+                self.rage_rounds_remaining = None;
+            }
+            CharacterClass::Monk => {
+                // Ki points equal Monk level (starting at level 2)
+                if level >= 2 {
+                    self.ki_points = level;
+                    self.max_ki_points = level;
+                }
+            }
+            CharacterClass::Paladin => {
+                // Lay on Hands pool = 5 × Paladin level
+                self.lay_on_hands_pool = 5 * level as u32;
+                self.lay_on_hands_max = 5 * level as u32;
+            }
+            CharacterClass::Sorcerer => {
+                // Sorcery points equal Sorcerer level (starting at level 2)
+                if level >= 2 {
+                    self.sorcery_points = level;
+                    self.max_sorcery_points = level;
+                }
+            }
+            CharacterClass::Fighter => {
+                self.action_surge_used = false;
+                self.second_wind_used = false;
+            }
+            CharacterClass::Wizard => {
+                self.arcane_recovery_used = 0;
+            }
+            _ => {}
+        }
+    }
+
+    /// Reset resources on a short rest
+    pub fn short_rest_recovery(&mut self, class: CharacterClass) {
+        match class {
+            CharacterClass::Fighter => {
+                self.action_surge_used = false;
+                self.second_wind_used = false;
+            }
+            CharacterClass::Monk => {
+                // Ki points don't recover on short rest in base rules
+                // (Uncanny Metabolism at level 2 lets them recover some)
+            }
+            _ => {}
+        }
+    }
+
+    /// Reset resources on a long rest
+    pub fn long_rest_recovery(&mut self, class: CharacterClass, level: u8) {
+        // Long rest recovers everything a short rest does
+        self.short_rest_recovery(class);
+
+        match class {
+            CharacterClass::Barbarian => {
+                self.rage_active = false;
+                self.rage_rounds_remaining = None;
+            }
+            CharacterClass::Monk => {
+                self.ki_points = self.max_ki_points;
+            }
+            CharacterClass::Paladin => {
+                self.lay_on_hands_pool = self.lay_on_hands_max;
+            }
+            CharacterClass::Sorcerer => {
+                self.sorcery_points = self.max_sorcery_points;
+            }
+            CharacterClass::Wizard => {
+                self.arcane_recovery_used = 0;
+            }
+            _ => {}
+        }
+        // Ignore unused level parameter for now
+        let _ = level;
+    }
 }
 
 // ============================================================================
@@ -1369,6 +1570,7 @@ pub struct Character {
     // Class features
     pub classes: Vec<ClassLevel>,
     pub features: Vec<Feature>,
+    pub class_resources: ClassResources,
 
     // Spellcasting
     pub spellcasting: Option<SpellcastingData>,
@@ -1387,6 +1589,9 @@ pub struct Character {
     pub race_type: RaceType,
     pub background: Background,
     pub background_name: String, // For display/legacy
+
+    // Player backstory
+    pub backstory: Option<String>,
 }
 
 impl Character {
@@ -1406,11 +1611,15 @@ impl Character {
             conditions: Vec::new(),
             classes: Vec::new(),
             features: Vec::new(),
+            class_resources: ClassResources::new(),
             spellcasting: None,
             skill_proficiencies: HashMap::new(),
             saving_throw_proficiencies: HashSet::new(),
             languages: vec!["Common".to_string()],
-            inventory: Inventory::default(),
+            inventory: Inventory {
+                items: Vec::new(),
+                gold: 15.0, // Starting gold
+            },
             equipment: Equipment::default(),
             race: Race {
                 name: "Human".to_string(),
@@ -1420,6 +1629,7 @@ impl Character {
             race_type: RaceType::Human,
             background: Background::Soldier,
             background_name: "Soldier".to_string(),
+            backstory: None,
         }
     }
 
@@ -1799,7 +2009,7 @@ impl GameTime {
 
 impl Default for GameTime {
     fn default() -> Self {
-        Self::new(1492, 3, 15, 10, 0)
+        Self::new(1492, 3, 1, 10, 0) // Day 1 of the month
     }
 }
 
@@ -1917,6 +2127,13 @@ impl GameWorld {
                 }
             }
         }
+
+        // Reset class-specific resources
+        for class_level in &self.player_character.classes {
+            self.player_character
+                .class_resources
+                .short_rest_recovery(class_level.class);
+        }
     }
 
     pub fn long_rest(&mut self) {
@@ -1962,6 +2179,19 @@ impl GameWorld {
                     uses.current = uses.maximum;
                 }
             }
+        }
+
+        // Reset class-specific resources
+        let classes: Vec<_> = self
+            .player_character
+            .classes
+            .iter()
+            .map(|c| (c.class, c.level))
+            .collect();
+        for (class, level) in classes {
+            self.player_character
+                .class_resources
+                .long_rest_recovery(class, level);
         }
     }
 
@@ -2320,5 +2550,21 @@ mod tests {
             magical: false,
         };
         assert!(rope.is_stackable());
+    }
+
+    #[test]
+    fn test_character_backstory() {
+        // New character should have no backstory
+        let character = Character::new("Test");
+        assert!(character.backstory.is_none());
+
+        // Can set backstory
+        let mut character = Character::new("Test");
+        character.backstory = Some("A wandering adventurer seeking glory.".to_string());
+        assert!(character.backstory.is_some());
+        assert_eq!(
+            character.backstory.as_ref().unwrap(),
+            "A wandering adventurer seeking glory."
+        );
     }
 }

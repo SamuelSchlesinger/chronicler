@@ -18,15 +18,16 @@ use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
 
 use crate::character_creation::{CharacterCreation, ReadyToStart};
-use crate::state::{AppState, GamePhase, PendingSession};
+use crate::state::{AppState, CharacterSaveList, GamePhase, GameSaveList, PendingSession};
 use dnd_core::{GameSession, SessionConfig};
 
 fn main() {
     // Load .env file if present
     dotenvy::dotenv().ok();
 
-    // Create saves directory if it doesn't exist
+    // Create saves directories if they don't exist
     std::fs::create_dir_all("saves").ok();
+    std::fs::create_dir_all("saves/characters").ok();
 
     App::new()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
@@ -42,6 +43,8 @@ fn main() {
         // App state
         .init_state::<GamePhase>()
         .init_resource::<AppState>()
+        .init_resource::<CharacterSaveList>()
+        .init_resource::<GameSaveList>()
         // Startup systems
         .add_systems(Startup, setup)
         // State transition systems
@@ -69,6 +72,9 @@ fn main() {
         .add_systems(Update, (
             state::handle_worker_responses,
             state::check_pending_session,
+            state::check_pending_character_list,
+            state::check_pending_game_list,
+            state::check_pending_game_load,
             state::clear_old_status,
             handle_ready_to_start,
         ))

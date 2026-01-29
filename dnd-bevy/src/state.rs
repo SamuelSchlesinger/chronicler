@@ -124,6 +124,18 @@ pub struct WorldUpdate {
     pub proficiency_bonus: i8,
     /// Active and completed quests.
     pub quests: Vec<Quest>,
+    /// Spell slots (level 1-9): (available, total) for each level
+    pub spell_slots: Vec<(u8, u8)>,
+    /// Known/prepared spells
+    pub known_spells: Vec<String>,
+    /// Known cantrips
+    pub cantrips: Vec<String>,
+    /// Spellcasting ability (if any)
+    pub spellcasting_ability: Option<String>,
+    /// Spell save DC (if spellcaster)
+    pub spell_save_dc: Option<u8>,
+    /// Spell attack bonus (if spellcaster)
+    pub spell_attack_bonus: Option<i8>,
 }
 
 impl Default for WorldUpdate {
@@ -151,6 +163,12 @@ impl Default for WorldUpdate {
             skill_proficiencies: HashMap::new(),
             proficiency_bonus: 2,
             quests: Vec::new(),
+            spell_slots: Vec::new(),
+            known_spells: Vec::new(),
+            cantrips: Vec::new(),
+            spellcasting_ability: None,
+            spell_save_dc: None,
+            spell_attack_bonus: None,
         }
     }
 }
@@ -195,6 +213,39 @@ impl WorldUpdate {
                 .collect(),
             proficiency_bonus: character.proficiency_bonus(),
             quests: world.quests.clone(),
+            spell_slots: character
+                .spellcasting
+                .as_ref()
+                .map(|sc| {
+                    sc.spell_slots
+                        .slots
+                        .iter()
+                        .map(|slot| (slot.available(), slot.total))
+                        .collect()
+                })
+                .unwrap_or_default(),
+            known_spells: character
+                .spellcasting
+                .as_ref()
+                .map(|sc| sc.spells_known.clone())
+                .unwrap_or_default(),
+            cantrips: character
+                .spellcasting
+                .as_ref()
+                .map(|sc| sc.cantrips_known.clone())
+                .unwrap_or_default(),
+            spellcasting_ability: character
+                .spellcasting
+                .as_ref()
+                .map(|sc| sc.ability.name().to_string()),
+            spell_save_dc: character.spellcasting.as_ref().map(|sc| {
+                let mod_ = character.ability_scores.modifier(sc.ability);
+                (8 + mod_ + character.proficiency_bonus()) as u8
+            }),
+            spell_attack_bonus: character.spellcasting.as_ref().map(|sc| {
+                let mod_ = character.ability_scores.modifier(sc.ability);
+                mod_ + character.proficiency_bonus()
+            }),
         }
     }
 }
@@ -218,11 +269,66 @@ pub enum ActiveOverlay {
     QuestLog,
     Help,
     Settings,
+    LoadCharacter,
+    LoadGame,
 }
 
 /// Pending session creation - holds the receiver for async session creation.
 #[derive(Resource)]
 pub struct PendingSession {
+    pub receiver: std::sync::Mutex<std::sync::mpsc::Receiver<Result<GameSession, String>>>,
+}
+
+/// List of saved characters for the load character overlay.
+#[derive(Resource, Default)]
+pub struct CharacterSaveList {
+    /// The list of character saves.
+    pub saves: Vec<dnd_core::CharacterSaveInfo>,
+    /// Whether the list is being loaded.
+    pub loading: bool,
+    /// Whether the list has been loaded at least once.
+    pub loaded: bool,
+    /// Selected character index.
+    pub selected: Option<usize>,
+    /// Error message if loading failed.
+    pub error: Option<String>,
+}
+
+/// Pending character list load - holds the receiver for async character list loading.
+#[derive(Resource)]
+pub struct PendingCharacterList {
+    pub receiver: std::sync::Mutex<std::sync::mpsc::Receiver<Result<Vec<dnd_core::CharacterSaveInfo>, dnd_core::persist::PersistError>>>,
+}
+
+/// Information about a game save file.
+#[derive(Debug, Clone)]
+pub struct GameSaveInfo {
+    pub path: String,
+    pub campaign_name: String,
+    pub character_name: String,
+    pub character_level: u8,
+    pub saved_at: String,
+}
+
+/// List of saved games for the load game overlay.
+#[derive(Resource, Default)]
+pub struct GameSaveList {
+    pub saves: Vec<GameSaveInfo>,
+    pub loading: bool,
+    pub loaded: bool,
+    pub selected: Option<usize>,
+    pub error: Option<String>,
+}
+
+/// Pending game list load.
+#[derive(Resource)]
+pub struct PendingGameList {
+    pub receiver: std::sync::Mutex<std::sync::mpsc::Receiver<Result<Vec<GameSaveInfo>, String>>>,
+}
+
+/// Pending game session load from a save file.
+#[derive(Resource)]
+pub struct PendingGameLoad {
     pub receiver: std::sync::Mutex<std::sync::mpsc::Receiver<Result<GameSession, String>>>,
 }
 
@@ -488,6 +594,122 @@ pub fn handle_worker_responses(
                     }
                 }
             }
+        }
+    }
+}
+
+/// System to check for pending game list load.
+pub fn check_pending_game_list(
+    mut commands: Commands,
+    pending: Option<Res<PendingGameList>>,
+    mut save_list: Option<ResMut<GameSaveList>>,
+) {
+    let Some(pending) = pending else { return };
+    let Some(ref mut list) = save_list else { return };
+
+    let result = {
+        let receiver = pending.receiver.lock().unwrap();
+        receiver.try_recv()
+    };
+
+    match result {
+        Ok(Ok(saves)) => {
+            list.saves = saves;
+            list.loading = false;
+            list.loaded = true;
+            commands.remove_resource::<PendingGameList>();
+        }
+        Ok(Err(e)) => {
+            list.error = Some(e);
+            list.loading = false;
+            list.loaded = true;
+            commands.remove_resource::<PendingGameList>();
+        }
+        Err(std::sync::mpsc::TryRecvError::Empty) => {}
+        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+            list.error = Some("Game list load failed unexpectedly".to_string());
+            list.loading = false;
+            list.loaded = true;
+            commands.remove_resource::<PendingGameList>();
+        }
+    }
+}
+
+/// System to check for pending game load and start the session.
+pub fn check_pending_game_load(
+    mut commands: Commands,
+    pending: Option<Res<PendingGameLoad>>,
+    mut app_state: ResMut<AppState>,
+    mut next_phase: ResMut<NextState<GamePhase>>,
+) {
+    let Some(pending) = pending else { return };
+
+    let result = {
+        let receiver = pending.receiver.lock().unwrap();
+        receiver.try_recv()
+    };
+
+    match result {
+        Ok(Ok(session)) => {
+            // Session loaded successfully - spawn the worker
+            let (request_tx, response_rx, initial_world) = spawn_worker(session);
+            app_state.request_tx = Some(request_tx);
+            app_state.response_rx = Some(response_rx);
+            app_state.world = initial_world;
+            app_state.set_status_persistent("Game loaded!");
+            app_state.overlay = ActiveOverlay::None;
+
+            // Transition to playing
+            next_phase.set(GamePhase::Playing);
+            commands.remove_resource::<PendingGameLoad>();
+        }
+        Ok(Err(e)) => {
+            app_state.error_message = Some(format!("Failed to load game: {e}"));
+            commands.remove_resource::<PendingGameLoad>();
+        }
+        Err(std::sync::mpsc::TryRecvError::Empty) => {}
+        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+            app_state.error_message = Some("Game load failed unexpectedly".to_string());
+            commands.remove_resource::<PendingGameLoad>();
+        }
+    }
+}
+
+/// System to check for pending character list load.
+pub fn check_pending_character_list(
+    mut commands: Commands,
+    pending: Option<Res<PendingCharacterList>>,
+    mut save_list: Option<ResMut<CharacterSaveList>>,
+) {
+    let Some(pending) = pending else { return };
+    let Some(ref mut list) = save_list else { return };
+
+    let result = {
+        let receiver = pending.receiver.lock().unwrap();
+        receiver.try_recv()
+    };
+
+    match result {
+        Ok(Ok(saves)) => {
+            list.saves = saves;
+            list.loading = false;
+            list.loaded = true;
+            commands.remove_resource::<PendingCharacterList>();
+        }
+        Ok(Err(e)) => {
+            list.error = Some(format!("Failed to load saves: {e}"));
+            list.loading = false;
+            list.loaded = true;
+            commands.remove_resource::<PendingCharacterList>();
+        }
+        Err(std::sync::mpsc::TryRecvError::Empty) => {
+            // Still loading
+        }
+        Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+            list.error = Some("Character list load failed unexpectedly".to_string());
+            list.loading = false;
+            list.loaded = true;
+            commands.remove_resource::<PendingCharacterList>();
         }
     }
 }

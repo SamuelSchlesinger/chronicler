@@ -1,0 +1,305 @@
+# D&D 5e Class Reference (SRD 5.2)
+
+This reference helps you understand class features and mechanics for proper gameplay resolution.
+
+## Barbarian (d12 HD, STR primary)
+
+### Level Features
+- **Level 1**: Rage (2/long rest), Unarmored Defense (AC = 10 + DEX + CON), Weapon Mastery
+- **Level 2**: Danger Sense (advantage on DEX saves vs seen effects), Reckless Attack (advantage on attacks, enemies have advantage on you)
+- **Level 3**: Subclass (Path of Berserker), Primal Knowledge
+- **Level 4**: ASI
+- **Level 5**: Extra Attack, Fast Movement (+10 ft while not in heavy armor)
+
+### Rage Mechanics
+- Bonus Action to enter (can't wear heavy armor)
+- Advantage on STR checks/saves
+- Rage damage bonus: +2 (levels 1-8), +3 (9-15), +4 (16+)
+- Resistance to bludgeoning, piercing, slashing damage
+- Can't cast spells or concentrate while raging
+- Ends after 1 minute, if knocked unconscious, or if turn ends without attacking/taking damage
+
+---
+
+## Bard (d8 HD, CHA primary, full caster)
+
+### Level Features
+- **Level 1**: Bardic Inspiration (d6, CHA mod uses/long rest), Spellcasting
+- **Level 2**: Expertise (2 skills), Jack of All Trades (+half prof to non-proficient checks)
+- **Level 3**: Subclass (College of Lore)
+- **Level 4**: ASI
+- **Level 5**: Font of Inspiration (recover on short rest)
+
+### Spellcasting
+- Cantrips: 2 at level 1, +1 at levels 4, 10
+- Spell Slots: 2 1st-level at level 1
+- Spellcasting ability: Charisma
+
+### Bardic Inspiration
+- Bonus action to grant one creature a d6 (d8 at 5th, d10 at 10th, d12 at 15th)
+- Recipient can add to one ability check, attack roll, or saving throw
+- Lasts 10 minutes or until used
+
+---
+
+## Cleric (d8 HD, WIS primary, full caster)
+
+### Level Features
+- **Level 1**: Spellcasting, Divine Order (Protector or Thaumaturge)
+- **Level 2**: Channel Divinity (1/rest): Turn Undead, Divine Spark
+- **Level 3**: Subclass (Life Domain)
+- **Level 4**: ASI
+- **Level 5**: Sear Undead (extra damage with Turn Undead)
+
+### Spellcasting
+- Cantrips: 3 at level 1
+- Prepared spells: WIS mod + Cleric level
+- Spell Slots: 2 1st-level at level 1
+- Spellcasting ability: Wisdom
+- Can prepare any spell from Cleric list each long rest
+
+### Life Domain Features
+- Disciple of Life: Healing spells restore extra 2 + spell level HP
+- Preserve Life (Channel Divinity): Restore HP equal to 5 × Cleric level, divided among creatures
+
+---
+
+## Druid (d8 HD, WIS primary, full caster)
+
+### Level Features
+- **Level 1**: Druidic (secret language), Spellcasting, Primal Order
+- **Level 2**: Wild Shape (2/short rest), Wild Companion
+- **Level 3**: Subclass (Circle of the Land)
+- **Level 4**: ASI
+- **Level 5**: Wild Resurgence
+
+### Spellcasting
+- Cantrips: 2 at level 1
+- Prepared spells: WIS mod + Druid level
+- Spell Slots: 2 1st-level at level 1
+- Spellcasting ability: Wisdom
+
+### Wild Shape
+- Bonus action to transform
+- Max CR: 1/4 (level 2), 1/2 (level 4), 1 (level 8)
+- Duration: Hours = half druid level
+- Keep mental stats, proficiencies, features
+- Can't cast spells while transformed (can concentrate)
+
+---
+
+## Fighter (d10 HD, STR or DEX primary)
+
+### Level Features
+- **Level 1**: Fighting Style, Second Wind (1d10+level HP, 1/short rest), Weapon Mastery
+- **Level 2**: Action Surge (1/short rest), Tactical Mind
+- **Level 3**: Subclass (Champion)
+- **Level 4**: ASI
+- **Level 5**: Extra Attack, Tactical Shift
+
+### Fighting Styles
+- Archery: +2 to ranged attack rolls
+- Defense: +1 AC while wearing armor
+- Dueling: +2 damage with one-handed weapon, other hand free
+- Great Weapon Fighting: Reroll 1s and 2s on damage with two-handed weapons
+- Protection: Impose disadvantage on attacks against adjacent allies (reaction, shield required)
+- Two-Weapon Fighting: Add ability modifier to off-hand damage
+
+### Champion Features
+- Improved Critical: Critical hit on 19-20
+
+---
+
+## Monk (d8 HD, DEX + WIS primary)
+
+### Level Features
+- **Level 1**: Martial Arts, Unarmored Defense (AC = 10 + DEX + WIS)
+- **Level 2**: Monk's Focus (Ki points = monk level), Unarmored Movement (+10 ft), Uncanny Metabolism
+- **Level 3**: Deflect Attacks, Subclass (Way of the Open Hand)
+- **Level 4**: ASI, Slow Fall
+- **Level 5**: Extra Attack, Stunning Strike
+
+### Martial Arts
+- Use DEX for unarmed strikes and monk weapons
+- Martial Arts die: d6 (level 1-4), d8 (5-10), d10 (11-16), d12 (17+)
+- Bonus action unarmed strike after Attack action
+
+### Ki Features (1 Ki point each unless noted)
+- Flurry of Blows: 2 bonus action unarmed strikes
+- Patient Defense: Dodge as bonus action
+- Step of the Wind: Disengage or Dash as bonus action, jump distance doubled
+- Stunning Strike (level 5): Target must CON save or be Stunned
+
+---
+
+## Paladin (d10 HD, STR + CHA primary, half caster)
+
+### Level Features
+- **Level 1**: Lay on Hands (HP pool = 5 × level), Spellcasting, Weapon Mastery
+- **Level 2**: Fighting Style, Paladin's Smite (Divine Smite)
+- **Level 3**: Channel Divinity, Subclass (Oath of Devotion)
+- **Level 4**: ASI
+- **Level 5**: Extra Attack, Faithful Steed
+
+### Spellcasting
+- Prepared spells: CHA mod + half paladin level
+- Spell Slots: 2 1st-level at level 2
+- Spellcasting ability: Charisma
+
+### Divine Smite
+- When you hit with a melee weapon attack, expend a spell slot
+- Deal extra 2d8 radiant damage (+1d8 per slot level above 1st)
+- +1d8 vs undead or fiends
+- Maximum 5d8 (using 4th level slot) or 6d8 vs undead/fiends
+
+---
+
+## Ranger (d10 HD, DEX + WIS primary, half caster)
+
+### Level Features
+- **Level 1**: Spellcasting, Favored Enemy, Weapon Mastery
+- **Level 2**: Deft Explorer, Fighting Style
+- **Level 3**: Subclass (Hunter)
+- **Level 4**: ASI
+- **Level 5**: Extra Attack
+
+### Spellcasting
+- Spells known: 2 at level 2, increasing with level
+- Spell Slots: 2 1st-level at level 2
+- Spellcasting ability: Wisdom
+
+### Hunter Features
+- Hunter's Prey: Choose one:
+  - Colossus Slayer: +1d8 damage to wounded targets (1/turn)
+  - Horde Breaker: Make extra attack vs different creature within 5 ft of original target
+  - Giant Killer: Reaction attack when Large+ creature attacks you
+
+---
+
+## Rogue (d8 HD, DEX primary)
+
+### Level Features
+- **Level 1**: Expertise (2 skills), Sneak Attack (1d6), Thieves' Cant, Weapon Mastery
+- **Level 2**: Cunning Action (Dash, Disengage, or Hide as bonus action)
+- **Level 3**: Subclass (Thief), Steady Aim
+- **Level 4**: ASI
+- **Level 5**: Cunning Strike, Uncanny Dodge
+
+### Sneak Attack
+- Once per turn when you hit with finesse or ranged weapon
+- Requires: Advantage on attack OR enemy of target within 5 ft of target
+- Damage: 1d6 (level 1), +1d6 every 2 levels (2d6 at 3rd, 3d6 at 5th, etc.)
+
+### Thief Features
+- Fast Hands: Use Cunning Action for Sleight of Hand, Use Object, or disarm traps
+- Second-Story Work: Climb at full speed, jump distance +DEX modifier feet
+
+---
+
+## Sorcerer (d6 HD, CHA primary, full caster)
+
+### Level Features
+- **Level 1**: Spellcasting, Innate Sorcery
+- **Level 2**: Font of Magic (sorcery points = level), Metamagic (2 options)
+- **Level 3**: Subclass (Draconic Bloodline)
+- **Level 4**: ASI
+- **Level 5**: Sorcerous Restoration
+
+### Spellcasting
+- Cantrips: 4 at level 1
+- Spells known: 2 at level 1, increasing with level
+- Spell Slots: 2 1st-level at level 1
+- Spellcasting ability: Charisma
+
+### Metamagic Options
+- Careful Spell (1 point): Protect CHA mod creatures from your spell's save
+- Distant Spell (1 point): Double range, or 30 ft if touch
+- Empowered Spell (1 point): Reroll up to CHA mod damage dice
+- Extended Spell (1 point): Double duration up to 24 hours
+- Heightened Spell (3 points): Disadvantage on first save
+- Quickened Spell (2 points): Bonus action casting time
+- Subtle Spell (1 point): No verbal/somatic components
+- Twinned Spell (points = spell level): Target second creature
+
+---
+
+## Warlock (d8 HD, CHA primary, pact caster)
+
+### Level Features
+- **Level 1**: Eldritch Invocations (2), Pact Magic
+- **Level 2**: Magical Cunning
+- **Level 3**: Subclass (Fiend)
+- **Level 4**: ASI
+- **Level 5**: Additional Invocation
+
+### Pact Magic
+- Spell slots recover on SHORT rest (unlike other casters)
+- All slots are same level: 1st (levels 1), 2nd (levels 3-4), 3rd (levels 5-6)
+- Slots: 1 at level 1, 2 at level 2+
+- Spellcasting ability: Charisma
+
+### Key Invocations
+- Agonizing Blast: Add CHA to eldritch blast damage
+- Devil's Sight: See in magical darkness 120 ft
+- Mask of Many Faces: Disguise self at will
+
+### Fiend Features
+- Dark One's Blessing: Gain temp HP = CHA mod + warlock level when you reduce hostile to 0 HP
+
+---
+
+## Wizard (d6 HD, INT primary, full caster)
+
+### Level Features
+- **Level 1**: Spellcasting, Ritual Adept, Arcane Recovery
+- **Level 2**: Scholar
+- **Level 3**: Subclass (Evocation)
+- **Level 4**: ASI
+- **Level 5**: Memorize Spell
+
+### Spellcasting
+- Cantrips: 3 at level 1
+- Spellbook: Start with 6 1st-level spells, add 2 per level
+- Prepared spells: INT mod + wizard level
+- Spell Slots: 2 1st-level at level 1
+- Spellcasting ability: Intelligence
+
+### Arcane Recovery
+- Once per day during short rest, recover spell slots
+- Total slot levels recovered = half wizard level (rounded up)
+
+### Evocation Features
+- Evocation Savant: Copy evocation spells in half time/cost
+- Potent Cantrip: Add INT mod to cantrip damage
+- Sculpt Spells: Protect allies from your evocation spells
+
+---
+
+## Spell Slot Progression (Full Casters: Bard, Cleric, Druid, Sorcerer, Wizard)
+
+| Level | 1st | 2nd | 3rd | 4th | 5th |
+|-------|-----|-----|-----|-----|-----|
+| 1     | 2   | -   | -   | -   | -   |
+| 2     | 3   | -   | -   | -   | -   |
+| 3     | 4   | 2   | -   | -   | -   |
+| 4     | 4   | 3   | -   | -   | -   |
+| 5     | 4   | 3   | 2   | -   | -   |
+
+## Spell Slot Progression (Half Casters: Paladin, Ranger)
+
+| Level | 1st | 2nd |
+|-------|-----|-----|
+| 2     | 2   | -   |
+| 3     | 3   | -   |
+| 4     | 3   | -   |
+| 5     | 4   | 2   |
+
+## Warlock Pact Magic Slots
+
+| Level | Slots | Slot Level |
+|-------|-------|------------|
+| 1     | 1     | 1st        |
+| 2     | 2     | 1st        |
+| 3     | 2     | 2nd        |
+| 4     | 2     | 2nd        |
+| 5     | 2     | 3rd        |

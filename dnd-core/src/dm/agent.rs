@@ -354,7 +354,16 @@ impl DungeonMaster {
         let mut messages = self.memory.get_messages();
 
         // Tool use loop
+        let mut iteration = 0;
         loop {
+            // Add paragraph break between narrative from different API calls
+            // (e.g., when continuing after tool results)
+            if iteration > 0 && !narrative.is_empty() && !narrative.ends_with('\n') {
+                narrative.push_str("\n\n");
+                on_text("\n\n");
+            }
+            iteration += 1;
+
             let tools = DmTools::all();
 
             let mut request = Request::new(messages.clone())
@@ -601,6 +610,10 @@ impl DungeonMaster {
         prompt.push_str("\n\n");
         prompt.push_str(include_str!("prompts/class_features.txt"));
 
+        // Add class mechanical reference - detailed rules for class features
+        prompt.push_str("\n\n");
+        prompt.push_str(include_str!("prompts/class_reference.txt"));
+
         // Add custom prompt if provided
         if let Some(ref custom) = self.config.custom_system_prompt {
             prompt.push_str("\n\n## Additional Instructions\n");
@@ -637,6 +650,51 @@ impl DungeonMaster {
             pc.hit_points.current, pc.hit_points.maximum
         ));
         prompt.push_str(&format!("**AC:** {}\n", pc.current_ac()));
+
+        // Add backstory if present
+        if let Some(ref backstory) = pc.backstory {
+            prompt.push_str(&format!("\n**Backstory:**\n{}\n", backstory));
+        }
+
+        // Add spellcasting info if present
+        if let Some(ref spellcasting) = pc.spellcasting {
+            prompt.push_str("\n**Spellcasting:**\n");
+            prompt.push_str(&format!(
+                "- Ability: {} (DC {}, +{} to hit)\n",
+                spellcasting.ability.name(),
+                spellcasting.spell_save_dc(&pc.ability_scores, pc.proficiency_bonus()),
+                spellcasting.spell_attack_bonus(&pc.ability_scores, pc.proficiency_bonus())
+            ));
+            if !spellcasting.cantrips_known.is_empty() {
+                prompt.push_str(&format!(
+                    "- Cantrips: {}\n",
+                    spellcasting.cantrips_known.join(", ")
+                ));
+            }
+            if !spellcasting.spells_prepared.is_empty() {
+                prompt.push_str(&format!(
+                    "- Prepared Spells: {}\n",
+                    spellcasting.spells_prepared.join(", ")
+                ));
+            } else if !spellcasting.spells_known.is_empty() {
+                prompt.push_str(&format!(
+                    "- Known Spells: {}\n",
+                    spellcasting.spells_known.join(", ")
+                ));
+            }
+            // Show available spell slots
+            let slots: Vec<String> = spellcasting
+                .spell_slots
+                .slots
+                .iter()
+                .enumerate()
+                .filter(|(_, s)| s.total > 0)
+                .map(|(i, s)| format!("L{}: {}/{}", i + 1, s.available(), s.total))
+                .collect();
+            if !slots.is_empty() {
+                prompt.push_str(&format!("- Spell Slots: {}\n", slots.join(", ")));
+            }
+        }
 
         // Add ability scores
         prompt.push_str(&format!(

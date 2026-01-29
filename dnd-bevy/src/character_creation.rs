@@ -4,9 +4,10 @@
 
 use bevy::prelude::*;
 use bevy_egui::egui;
+use dnd_core::spells::{spells_by_level, SpellClass};
 use dnd_core::world::{
     Ability, AbilityScores, Background, Character, CharacterClass, ClassLevel, HitPoints,
-    ProficiencyLevel, Race, RaceType, Skill, Speed,
+    ProficiencyLevel, Race, RaceType, Skill, SlotInfo, Speed, SpellSlots, SpellcastingData,
 };
 use dnd_core::{AbilityMethod, CharacterBuilder};
 use std::collections::HashSet;
@@ -39,6 +40,8 @@ pub enum CreationStep {
     AbilityMethod,
     AbilityScores,
     Skills,
+    Spells,
+    Backstory,
     Review,
 }
 
@@ -53,11 +56,14 @@ impl CreationStep {
             CreationStep::AbilityMethod => "Ability Score Method",
             CreationStep::AbilityScores => "Assign Ability Scores",
             CreationStep::Skills => "Choose Skills",
+            CreationStep::Spells => "Choose Spells",
+            CreationStep::Backstory => "Write Your Backstory",
             CreationStep::Review => "Review Character",
         }
     }
 
-    pub fn next(&self) -> Option<CreationStep> {
+    /// Get next step, considering whether the class is a spellcaster.
+    pub fn next_for_class(&self, class: Option<CharacterClass>) -> Option<CreationStep> {
         match self {
             CreationStep::Name => Some(CreationStep::Race),
             CreationStep::Race => Some(CreationStep::Class),
@@ -65,12 +71,22 @@ impl CreationStep {
             CreationStep::Background => Some(CreationStep::AbilityMethod),
             CreationStep::AbilityMethod => Some(CreationStep::AbilityScores),
             CreationStep::AbilityScores => Some(CreationStep::Skills),
-            CreationStep::Skills => Some(CreationStep::Review),
+            CreationStep::Skills => {
+                // Only show Spells step for spellcasting classes
+                if class.map(|c| c.is_spellcaster()).unwrap_or(false) {
+                    Some(CreationStep::Spells)
+                } else {
+                    Some(CreationStep::Backstory)
+                }
+            }
+            CreationStep::Spells => Some(CreationStep::Backstory),
+            CreationStep::Backstory => Some(CreationStep::Review),
             CreationStep::Review => None,
         }
     }
 
-    pub fn prev(&self) -> Option<CreationStep> {
+    /// Get previous step, considering whether the class is a spellcaster.
+    pub fn prev_for_class(&self, class: Option<CharacterClass>) -> Option<CreationStep> {
         match self {
             CreationStep::Name => None,
             CreationStep::Race => Some(CreationStep::Name),
@@ -79,8 +95,25 @@ impl CreationStep {
             CreationStep::AbilityMethod => Some(CreationStep::Background),
             CreationStep::AbilityScores => Some(CreationStep::AbilityMethod),
             CreationStep::Skills => Some(CreationStep::AbilityScores),
-            CreationStep::Review => Some(CreationStep::Skills),
+            CreationStep::Spells => Some(CreationStep::Skills),
+            CreationStep::Backstory => {
+                // Only show Spells step for spellcasting classes
+                if class.map(|c| c.is_spellcaster()).unwrap_or(false) {
+                    Some(CreationStep::Spells)
+                } else {
+                    Some(CreationStep::Skills)
+                }
+            }
+            CreationStep::Review => Some(CreationStep::Backstory),
         }
+    }
+
+    pub fn next(&self) -> Option<CreationStep> {
+        self.next_for_class(None)
+    }
+
+    pub fn prev(&self) -> Option<CreationStep> {
+        self.prev_for_class(None)
     }
 }
 
@@ -107,7 +140,16 @@ pub struct CharacterCreation {
     pub selected_skills: Vec<Skill>,
     pub available_skills: Vec<Skill>,
     pub required_skill_count: usize,
+    // Spell selection
+    pub selected_cantrips: Vec<String>,
+    pub selected_spells: Vec<String>,
+    pub available_cantrips: Vec<String>,
+    pub available_spells: Vec<String>,
+    pub required_cantrip_count: usize,
+    pub required_spell_count: usize,
+    pub backstory: String,
     pub error_message: Option<String>,
+    pub save_message: Option<String>,
 }
 
 impl CharacterCreation {
@@ -134,7 +176,29 @@ impl CharacterCreation {
             builder = builder.half_elf_bonuses([Ability::Strength, Ability::Constitution]);
         }
 
-        builder.build().map_err(|e| e.to_string())
+        // Add backstory if provided
+        if !self.backstory.trim().is_empty() {
+            builder = builder.backstory(&self.backstory);
+        }
+
+        let mut character = builder.build().map_err(|e| e.to_string())?;
+
+        // Add spellcasting if class is a spellcaster
+        if let Some(class) = self.class {
+            if class.is_spellcaster() {
+                if let Some(ability) = class.spellcasting_ability() {
+                    character.spellcasting = Some(SpellcastingData {
+                        ability,
+                        spells_known: self.selected_spells.clone(),
+                        spells_prepared: self.selected_spells.clone(), // For simplicity, prepared = known at level 1
+                        cantrips_known: self.selected_cantrips.clone(),
+                        spell_slots: create_level_1_spell_slots(class),
+                    });
+                }
+            }
+        }
+
+        Ok(character)
     }
 
     /// Build a preview character from current selections.
@@ -208,7 +272,52 @@ impl CharacterCreation {
                 .insert(*skill, ProficiencyLevel::Proficient);
         }
 
+        // Apply spellcasting if selected
+        if let Some(class) = self.class {
+            if class.is_spellcaster() {
+                if let Some(ability) = class.spellcasting_ability() {
+                    character.spellcasting = Some(SpellcastingData {
+                        ability,
+                        spells_known: self.selected_spells.clone(),
+                        spells_prepared: self.selected_spells.clone(),
+                        cantrips_known: self.selected_cantrips.clone(),
+                        spell_slots: create_level_1_spell_slots(class),
+                    });
+                }
+            }
+        }
+
         character
+    }
+}
+
+/// Create level 1 spell slots for a given class.
+fn create_level_1_spell_slots(class: CharacterClass) -> SpellSlots {
+    let first_level_slots = match class {
+        CharacterClass::Bard
+        | CharacterClass::Cleric
+        | CharacterClass::Druid
+        | CharacterClass::Sorcerer
+        | CharacterClass::Wizard => 2,
+        CharacterClass::Warlock => 1, // Pact Magic
+        _ => 0,
+    };
+
+    SpellSlots {
+        slots: [
+            SlotInfo {
+                total: first_level_slots,
+                used: 0,
+            },
+            SlotInfo { total: 0, used: 0 },
+            SlotInfo { total: 0, used: 0 },
+            SlotInfo { total: 0, used: 0 },
+            SlotInfo { total: 0, used: 0 },
+            SlotInfo { total: 0, used: 0 },
+            SlotInfo { total: 0, used: 0 },
+            SlotInfo { total: 0, used: 0 },
+            SlotInfo { total: 0, used: 0 },
+        ],
     }
 }
 
@@ -221,9 +330,10 @@ pub fn render_character_creation(
     commands: &mut Commands,
 ) {
     egui::CentralPanel::default().show(ctx, |ui| {
-        // Progress bar
+        // Progress bar - conditionally include Spells step for spellcasters
         ui.horizontal(|ui| {
-            let steps = [
+            let is_spellcaster = creation.class.map(|c| c.is_spellcaster()).unwrap_or(false);
+            let mut steps: Vec<CreationStep> = vec![
                 CreationStep::Name,
                 CreationStep::Race,
                 CreationStep::Class,
@@ -231,8 +341,12 @@ pub fn render_character_creation(
                 CreationStep::AbilityMethod,
                 CreationStep::AbilityScores,
                 CreationStep::Skills,
-                CreationStep::Review,
             ];
+            if is_spellcaster {
+                steps.push(CreationStep::Spells);
+            }
+            steps.push(CreationStep::Backstory);
+            steps.push(CreationStep::Review);
 
             for (i, step) in steps.iter().enumerate() {
                 let is_current = *step == creation.step;
@@ -270,6 +384,8 @@ pub fn render_character_creation(
                 CreationStep::AbilityMethod => render_ability_method_step(&mut columns[0], creation),
                 CreationStep::AbilityScores => render_ability_scores_step(&mut columns[0], creation),
                 CreationStep::Skills => render_skills_step(&mut columns[0], creation),
+                CreationStep::Spells => render_spells_step(&mut columns[0], creation),
+                CreationStep::Backstory => render_backstory_step(&mut columns[0], creation),
                 CreationStep::Review => render_review_step(&mut columns[0], creation, next_phase, app_state, commands),
             }
 
@@ -647,8 +763,197 @@ fn render_skills_step(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
 
     ui.add_space(10.0);
     if creation.selected_skills.len() == creation.required_skill_count && ui.button("Next >").clicked() {
-        creation.step = CreationStep::Review;
+        // Check if class is a spellcaster
+        if let Some(class) = creation.class {
+            if class.is_spellcaster() {
+                // Set up spell selection
+                setup_spell_selection(creation, class);
+                creation.step = CreationStep::Spells;
+            } else {
+                creation.step = CreationStep::Backstory;
+            }
+        } else {
+            creation.step = CreationStep::Backstory;
+        }
     }
+}
+
+/// Set up available spells for selection based on class.
+fn setup_spell_selection(creation: &mut CharacterCreation, class: CharacterClass) {
+    // Convert CharacterClass to SpellClass
+    let spell_class = match class {
+        CharacterClass::Bard => SpellClass::Bard,
+        CharacterClass::Cleric => SpellClass::Cleric,
+        CharacterClass::Druid => SpellClass::Druid,
+        CharacterClass::Sorcerer => SpellClass::Sorcerer,
+        CharacterClass::Warlock => SpellClass::Warlock,
+        CharacterClass::Wizard => SpellClass::Wizard,
+        CharacterClass::Paladin => SpellClass::Paladin,
+        CharacterClass::Ranger => SpellClass::Ranger,
+        _ => return,
+    };
+
+    // Get cantrips (level 0) for this class
+    creation.available_cantrips = spells_by_level(0)
+        .filter(|spell| spell.classes.contains(&spell_class))
+        .map(|spell| spell.name.clone())
+        .collect();
+
+    // Get 1st level spells for this class
+    creation.available_spells = spells_by_level(1)
+        .filter(|spell| spell.classes.contains(&spell_class))
+        .map(|spell| spell.name.clone())
+        .collect();
+
+    // Set required counts
+    creation.required_cantrip_count = class.cantrips_known_at_level_1();
+    creation.required_spell_count = class.spells_known_at_level_1();
+
+    // Clear previous selections
+    creation.selected_cantrips.clear();
+    creation.selected_spells.clear();
+}
+
+fn render_spells_step(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
+    let class_name = creation.class.map(|c| c.name()).unwrap_or("Unknown");
+
+    ui.label(format!("Choose spells for your {} (Level 1):", class_name));
+    ui.add_space(10.0);
+
+    // Cantrip selection
+    if creation.required_cantrip_count > 0 {
+        ui.heading("Cantrips");
+        ui.label(format!(
+            "Select {} cantrip{} ({} selected):",
+            creation.required_cantrip_count,
+            if creation.required_cantrip_count == 1 { "" } else { "s" },
+            creation.selected_cantrips.len()
+        ));
+        ui.add_space(5.0);
+
+        egui::ScrollArea::vertical()
+            .id_salt("cantrips")
+            .max_height(150.0)
+            .show(ui, |ui| {
+                for cantrip in creation.available_cantrips.clone() {
+                    let is_selected = creation.selected_cantrips.contains(&cantrip);
+                    let can_select = is_selected
+                        || creation.selected_cantrips.len() < creation.required_cantrip_count;
+
+                    let label = if is_selected {
+                        format!("[X] {}", cantrip)
+                    } else {
+                        format!("[ ] {}", cantrip)
+                    };
+
+                    if can_select {
+                        if ui.selectable_label(is_selected, &label).clicked() {
+                            if is_selected {
+                                creation.selected_cantrips.retain(|s| s != &cantrip);
+                            } else {
+                                creation.selected_cantrips.push(cantrip);
+                            }
+                        }
+                    } else {
+                        ui.add_enabled(false, egui::Label::new(&label));
+                    }
+                }
+            });
+        ui.add_space(10.0);
+    }
+
+    // Spell selection (for classes that learn specific spells)
+    if creation.required_spell_count > 0 {
+        ui.heading("1st Level Spells");
+        ui.label(format!(
+            "Select {} spell{} ({} selected):",
+            creation.required_spell_count,
+            if creation.required_spell_count == 1 { "" } else { "s" },
+            creation.selected_spells.len()
+        ));
+        ui.add_space(5.0);
+
+        egui::ScrollArea::vertical()
+            .id_salt("spells")
+            .max_height(200.0)
+            .show(ui, |ui| {
+                for spell in creation.available_spells.clone() {
+                    let is_selected = creation.selected_spells.contains(&spell);
+                    let can_select = is_selected
+                        || creation.selected_spells.len() < creation.required_spell_count;
+
+                    let label = if is_selected {
+                        format!("[X] {}", spell)
+                    } else {
+                        format!("[ ] {}", spell)
+                    };
+
+                    if can_select {
+                        if ui.selectable_label(is_selected, &label).clicked() {
+                            if is_selected {
+                                creation.selected_spells.retain(|s| s != &spell);
+                            } else {
+                                creation.selected_spells.push(spell);
+                            }
+                        }
+                    } else {
+                        ui.add_enabled(false, egui::Label::new(&label));
+                    }
+                }
+            });
+    } else if creation.class == Some(CharacterClass::Cleric)
+        || creation.class == Some(CharacterClass::Druid)
+    {
+        // Clerics and Druids prepare spells from the entire list
+        ui.label(
+            egui::RichText::new(
+                "As a prepared caster, you can prepare different spells each day from your entire class spell list.",
+            )
+            .small()
+            .color(egui::Color32::GRAY),
+        );
+    }
+
+    ui.add_space(10.0);
+
+    // Navigation
+    let cantrips_complete = creation.selected_cantrips.len() >= creation.required_cantrip_count;
+    let spells_complete = creation.selected_spells.len() >= creation.required_spell_count;
+
+    if cantrips_complete && spells_complete && ui.button("Next >").clicked() {
+        creation.step = CreationStep::Backstory;
+    }
+}
+
+fn render_backstory_step(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
+    ui.label("Write your character's backstory (optional):");
+    ui.add_space(5.0);
+    ui.label(
+        egui::RichText::new("This helps the DM understand your character's motivations and goals.")
+            .small()
+            .color(egui::Color32::GRAY),
+    );
+    ui.add_space(10.0);
+
+    egui::ScrollArea::vertical().max_height(300.0).show(ui, |ui| {
+        ui.add(
+            egui::TextEdit::multiline(&mut creation.backstory)
+                .hint_text("Who is your character? Where do they come from? What drives them?")
+                .desired_width(f32::INFINITY)
+                .desired_rows(12),
+        );
+    });
+
+    ui.add_space(10.0);
+    ui.horizontal(|ui| {
+        if ui.button("Skip").clicked() {
+            creation.backstory.clear();
+            creation.step = CreationStep::Review;
+        }
+        if ui.button("Next >").clicked() {
+            creation.step = CreationStep::Review;
+        }
+    });
 }
 
 fn render_review_step(
@@ -659,26 +964,64 @@ fn render_review_step(
     commands: &mut Commands,
 ) {
     ui.label("Review your character and begin your adventure!");
-    ui.add_space(20.0);
+    ui.add_space(10.0);
 
-    if ui.button("Start Adventure!").clicked() {
-        // Build character and start game
-        match creation.build_character() {
-            Ok(character) => {
-                // Store the character ready to start
-                commands.insert_resource(ReadyToStart {
-                    character,
-                    campaign_name: "The Dragon's Lair".to_string(),
-                });
+    // Show backstory if present
+    if !creation.backstory.trim().is_empty() {
+        ui.collapsing("Backstory", |ui| {
+            ui.label(&creation.backstory);
+        });
+        ui.add_space(10.0);
+    }
 
-                // Transition to playing - the session will be created by a system
-                next_phase.set(GamePhase::Playing);
-            }
-            Err(e) => {
-                creation.error_message = Some(format!("Failed to create character: {e}"));
+    // Save message
+    if let Some(ref msg) = creation.save_message {
+        ui.colored_label(egui::Color32::GREEN, msg);
+        ui.add_space(5.0);
+    }
+
+    ui.horizontal(|ui| {
+        if ui.button("Save Character").clicked() {
+            match creation.build_character() {
+                Ok(character) => {
+                    let saved = dnd_core::SavedCharacter::new(character);
+                    let path = dnd_core::persist::character_save_path("saves/characters", &creation.name);
+
+                    // Spawn async save task
+                    let path_clone = path.clone();
+                    std::thread::spawn(move || {
+                        let rt = tokio::runtime::Runtime::new().unwrap();
+                        rt.block_on(async {
+                            let _ = saved.save_json(&path_clone).await;
+                        });
+                    });
+
+                    creation.save_message = Some(format!("Character saved to {}", path.display()));
+                }
+                Err(e) => {
+                    creation.error_message = Some(format!("Failed to save: {e}"));
+                }
             }
         }
-    }
+
+        if ui.button("Start Adventure!").clicked() {
+            match creation.build_character() {
+                Ok(character) => {
+                    // Store the character ready to start
+                    commands.insert_resource(ReadyToStart {
+                        character,
+                        campaign_name: "The Dragon's Lair".to_string(),
+                    });
+
+                    // Transition to playing - the session will be created by a system
+                    next_phase.set(GamePhase::Playing);
+                }
+                Err(e) => {
+                    creation.error_message = Some(format!("Failed to create character: {e}"));
+                }
+            }
+        }
+    });
 }
 
 fn render_preview(ui: &mut egui::Ui, creation: &CharacterCreation) {

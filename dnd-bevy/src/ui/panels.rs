@@ -45,18 +45,21 @@ pub fn render_main_menu(
             ui.add_space(10.0);
 
             if ui
-                .add_sized(button_size, egui::Button::new("Load Game"))
+                .add_sized(button_size, egui::Button::new("Load Character"))
+                .on_hover_text("Load a saved character to start a new adventure")
                 .clicked()
             {
-                // Load the most recent save if it exists
-                let autosave_path = std::path::Path::new("saves/autosave.json");
-                if autosave_path.exists() {
-                    // Start a new game and load - we need a session first
-                    // For now, show a message that they need to start a game first
-                    app_state.error_message = Some("Start a New Game first, then use Load from the top bar.".to_string());
-                } else {
-                    app_state.error_message = Some("No save files found. Start a New Game!".to_string());
-                }
+                app_state.toggle_overlay(ActiveOverlay::LoadCharacter);
+            }
+
+            ui.add_space(10.0);
+
+            if ui
+                .add_sized(button_size, egui::Button::new("Load Game"))
+                .on_hover_text("Continue a saved campaign")
+                .clicked()
+            {
+                app_state.toggle_overlay(ActiveOverlay::LoadGame);
             }
 
             ui.add_space(10.0);
@@ -81,7 +84,7 @@ pub fn render_main_menu(
 
             // Footer
             ui.label(
-                egui::RichText::new("Press Enter to start a new adventure")
+                egui::RichText::new("Cmd+Q / Ctrl+Q to quit")
                     .size(12.0)
                     .color(egui::Color32::GRAY),
             );
@@ -116,15 +119,38 @@ pub fn render_top_bar(ctx: &egui::Context, app_state: &mut AppState) {
             ));
 
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                // Use consistent spacing between buttons
+                ui.spacing_mut().item_spacing.x = 6.0;
+
+                // Help button
+                if ui
+                    .button("?")
+                    .on_hover_text("Help (F1)")
+                    .clicked()
+                {
+                    app_state.toggle_overlay(ActiveOverlay::Help);
+                }
+
                 // Settings button
                 if ui
-                    .add(egui::Button::new("[S]").min_size(egui::vec2(28.0, 22.0)))
-                    .on_hover_text("Settings")
+                    .button("Settings")
+                    .on_hover_text("Game settings")
                     .clicked()
                 {
                     app_state.toggle_overlay(ActiveOverlay::Settings);
                 }
 
+                // Character Sheet button
+                if ui
+                    .button("Character")
+                    .on_hover_text("View full character sheet")
+                    .clicked()
+                {
+                    app_state.toggle_overlay(ActiveOverlay::CharacterSheet);
+                }
+
+                ui.add_space(4.0);
+                ui.separator();
                 ui.add_space(4.0);
 
                 // Load button
@@ -132,11 +158,11 @@ pub fn render_top_bar(ctx: &egui::Context, app_state: &mut AppState) {
                 let autosave_path = dnd_core::persist::auto_save_path("saves", &app_state.world.campaign_name);
                 let autosave_exists = autosave_path.exists();
                 if ui
-                    .add_enabled(load_enabled && autosave_exists, egui::Button::new("[L]").min_size(egui::vec2(28.0, 22.0)))
+                    .add_enabled(load_enabled && autosave_exists, egui::Button::new("Load"))
                     .on_hover_text(if autosave_exists {
-                        format!("Load Game ({})", autosave_path.display())
+                        "Load last save (Ctrl+L)"
                     } else {
-                        "No autosave found - save first with [W]".to_string()
+                        "No save found - save first"
                     })
                     .clicked()
                 {
@@ -147,13 +173,11 @@ pub fn render_top_bar(ctx: &egui::Context, app_state: &mut AppState) {
                     }
                 }
 
-                ui.add_space(4.0);
-
-                // Save button (saves to autosave location)
+                // Save button
                 let save_enabled = !app_state.is_saving && !app_state.is_processing && app_state.has_session();
                 if ui
-                    .add_enabled(save_enabled, egui::Button::new("[W]").min_size(egui::vec2(28.0, 22.0)))
-                    .on_hover_text("Save Game")
+                    .add_enabled(save_enabled, egui::Button::new("Save"))
+                    .on_hover_text("Save game (Ctrl+S)")
                     .clicked()
                 {
                     if let Some(tx) = &app_state.request_tx {
@@ -164,7 +188,7 @@ pub fn render_top_bar(ctx: &egui::Context, app_state: &mut AppState) {
                     }
                 }
 
-                ui.add_space(8.0);
+                ui.add_space(10.0);
 
                 // Status message with improved visibility
                 if let Some(ref status) = app_state.status_message {
@@ -224,26 +248,108 @@ pub fn render_narrative_panel(ctx: &egui::Context, app_state: &AppState, _curren
                         NarrativeType::System => "[System] ",
                     };
 
-                    ui.add(
-                        egui::Label::new(
-                            egui::RichText::new(format!("{}{}", prefix, entry.text))
-                                .color(color),
-                        )
-                        .wrap(),
-                    );
-                    ui.add_space(4.0);
+                    // Split by paragraph breaks (double newlines first, then single)
+                    // and render each paragraph with proper visual spacing
+                    let text_with_prefix = format!("{}{}", prefix, entry.text);
+
+                    // Check if there are double newlines (proper paragraphs)
+                    if text_with_prefix.contains("\n\n") {
+                        let paragraphs: Vec<&str> = text_with_prefix.split("\n\n").collect();
+                        for (i, paragraph) in paragraphs.iter().enumerate() {
+                            let text = paragraph.trim();
+                            if !text.is_empty() {
+                                ui.add(
+                                    egui::Label::new(
+                                        egui::RichText::new(text).color(color),
+                                    )
+                                    .wrap(),
+                                );
+                                // Add space between paragraphs
+                                if i < paragraphs.len() - 1 {
+                                    ui.add_space(8.0);
+                                }
+                            }
+                        }
+                    } else if text_with_prefix.contains('\n') {
+                        // Single newlines - render each line with smaller spacing
+                        let lines: Vec<&str> = text_with_prefix.split('\n').collect();
+                        for (i, line) in lines.iter().enumerate() {
+                            let text = line.trim();
+                            if !text.is_empty() {
+                                ui.add(
+                                    egui::Label::new(
+                                        egui::RichText::new(text).color(color),
+                                    )
+                                    .wrap(),
+                                );
+                                if i < lines.len() - 1 {
+                                    ui.add_space(4.0);
+                                }
+                            }
+                        }
+                    } else {
+                        // No newlines - render as a single block
+                        ui.add(
+                            egui::Label::new(
+                                egui::RichText::new(text_with_prefix.trim()).color(color),
+                            )
+                            .wrap(),
+                        );
+                    }
+                    ui.add_space(12.0);
                 }
 
                 // Show streaming text if any
                 if !app_state.streaming_text.is_empty() {
-                    ui.add(
-                        egui::Label::new(
-                            egui::RichText::new(&app_state.streaming_text)
-                                .color(egui::Color32::from_rgb(230, 220, 200))
-                                .italics(),
-                        )
-                        .wrap(),
-                    );
+                    let streaming_color = egui::Color32::from_rgb(230, 220, 200);
+
+                    // Check if there are double newlines (proper paragraphs)
+                    if app_state.streaming_text.contains("\n\n") {
+                        let paragraphs: Vec<&str> = app_state.streaming_text.split("\n\n").collect();
+                        for (i, paragraph) in paragraphs.iter().enumerate() {
+                            let text = paragraph.trim();
+                            if !text.is_empty() {
+                                ui.add(
+                                    egui::Label::new(
+                                        egui::RichText::new(text)
+                                            .color(streaming_color)
+                                            .italics(),
+                                    )
+                                    .wrap(),
+                                );
+                                if i < paragraphs.len() - 1 {
+                                    ui.add_space(8.0);
+                                }
+                            }
+                        }
+                    } else if app_state.streaming_text.contains('\n') {
+                        let lines: Vec<&str> = app_state.streaming_text.split('\n').collect();
+                        for (i, line) in lines.iter().enumerate() {
+                            let text = line.trim();
+                            if !text.is_empty() {
+                                ui.add(
+                                    egui::Label::new(
+                                        egui::RichText::new(text)
+                                            .color(streaming_color)
+                                            .italics(),
+                                    )
+                                    .wrap(),
+                                );
+                                if i < lines.len() - 1 {
+                                    ui.add_space(4.0);
+                                }
+                            }
+                        }
+                    } else {
+                        ui.add(
+                            egui::Label::new(
+                                egui::RichText::new(app_state.streaming_text.trim())
+                                    .color(streaming_color)
+                                    .italics(),
+                            )
+                            .wrap(),
+                        );
+                    }
                     ui.label(
                         egui::RichText::new("...")
                             .color(egui::Color32::GRAY)
@@ -263,19 +369,29 @@ pub fn render_character_panel(ctx: &egui::Context, app_state: &mut AppState) {
         .max_width(panel_width)
         .resizable(false)
         .show(ctx, |ui| {
-            // Header with collapse button
+            // Header with character name
             ui.horizontal(|ui| {
-                // Collapse/expand button
-                let button_text = if app_state.character_panel_expanded { "<" } else { ">" };
-                if ui.small_button(button_text).clicked() {
-                    app_state.character_panel_expanded = !app_state.character_panel_expanded;
-                }
-
                 // Character name
                 ui.heading(
                     egui::RichText::new(&app_state.world.player_name)
                         .color(egui::Color32::from_rgb(218, 165, 32)),
                 );
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    // Collapse/expand button
+                    let button_text = if app_state.character_panel_expanded { "−" } else { "+" };
+                    if ui
+                        .small_button(button_text)
+                        .on_hover_text(if app_state.character_panel_expanded {
+                            "Collapse panel"
+                        } else {
+                            "Expand panel"
+                        })
+                        .clicked()
+                    {
+                        app_state.character_panel_expanded = !app_state.character_panel_expanded;
+                    }
+                });
             });
 
             // HP Bar (always shown)
@@ -367,6 +483,52 @@ pub fn render_character_panel(ctx: &egui::Context, app_state: &mut AppState) {
                 ui.label(format!("  {armor}"));
             }
 
+            // Spell Slots (if spellcaster)
+            let has_spell_slots = app_state.world.spell_slots.iter().any(|(_, total)| *total > 0);
+            if has_spell_slots || !app_state.world.cantrips.is_empty() {
+                ui.separator();
+                ui.label(egui::RichText::new("Spellcasting").strong());
+
+                // Show spell save DC and attack bonus
+                if let (Some(dc), Some(atk)) = (app_state.world.spell_save_dc, app_state.world.spell_attack_bonus) {
+                    ui.horizontal(|ui| {
+                        ui.label(format!("DC {} | ", dc));
+                        ui.label(format!("+{} atk", atk));
+                    });
+                }
+
+                // Spell slots in compact format
+                if has_spell_slots {
+                    ui.horizontal_wrapped(|ui| {
+                        ui.label("Slots: ");
+                        for (i, (available, total)) in app_state.world.spell_slots.iter().enumerate() {
+                            if *total > 0 {
+                                let level = i + 1;
+                                let color = if *available > 0 {
+                                    egui::Color32::from_rgb(100, 180, 255)
+                                } else {
+                                    egui::Color32::GRAY
+                                };
+                                ui.label(
+                                    egui::RichText::new(format!("L{}: {}/{}", level, available, total))
+                                        .color(color)
+                                        .small(),
+                                );
+                            }
+                        }
+                    });
+                }
+
+                // Cantrips count
+                if !app_state.world.cantrips.is_empty() {
+                    ui.label(
+                        egui::RichText::new(format!("  {} cantrips", app_state.world.cantrips.len()))
+                            .small()
+                            .color(egui::Color32::LIGHT_GRAY),
+                    );
+                }
+            }
+
             ui.separator();
 
             // Gold
@@ -411,10 +573,15 @@ pub fn render_combat_panel(ctx: &egui::Context, app_state: &AppState) {
     }
 
     if let Some(ref combat) = app_state.world.combat {
+        // Position combat window below top bar, use responsive width
+        let screen = ctx.screen_rect();
+        let max_width = (screen.width() * 0.3).min(250.0).max(150.0);
+
         egui::Window::new("Combat")
             .collapsible(true)
             .resizable(true)
-            .default_pos([10.0, 100.0])
+            .default_pos([10.0, 50.0])
+            .default_width(max_width)
             .show(ctx, |ui| {
                 ui.label(format!("Round {}", combat.round));
                 ui.separator();

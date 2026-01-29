@@ -35,6 +35,7 @@ pub mod items;
 pub mod persist;
 pub mod rules;
 pub mod session;
+pub mod spells;
 pub mod testing;
 pub mod world;
 
@@ -44,6 +45,7 @@ pub use dnd_macros::Tool;
 // Primary public API
 pub use character_builder::{AbilityMethod, CharacterBuilder};
 pub use headless::{HeadlessConfig, HeadlessGame};
+pub use persist::{CharacterMetadata, CharacterSaveInfo, SavedCharacter};
 pub use session::{GameSession, Response, SessionConfig, SessionError};
 pub use testing::{MockDm, MockResponse, TestHarness};
 pub use world::{Background, CharacterClass, RaceType};

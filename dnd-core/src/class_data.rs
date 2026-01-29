@@ -38,7 +38,7 @@ impl CharacterClass {
                 level_1_features: vec![
                     Feature {
                         name: "Rage".to_string(),
-                        description: "Enter a rage as a bonus action. Gain advantage on STR checks/saves, bonus rage damage, and resistance to physical damage.".to_string(),
+                        description: "Enter a rage as a bonus action. Gain advantage on STR checks/saves, +2 rage damage, and resistance to bludgeoning, piercing, and slashing damage. Ends after 1 minute, if unconscious, or if your turn ends without attacking or taking damage.".to_string(),
                         source: "Barbarian".to_string(),
                         uses: Some(FeatureUses {
                             current: 2,
@@ -49,6 +49,12 @@ impl CharacterClass {
                     Feature {
                         name: "Unarmored Defense".to_string(),
                         description: "While not wearing armor, your AC equals 10 + DEX modifier + CON modifier.".to_string(),
+                        source: "Barbarian".to_string(),
+                        uses: None,
+                    },
+                    Feature {
+                        name: "Weapon Mastery".to_string(),
+                        description: "You gain the Weapon Mastery property benefit for weapons you are proficient with.".to_string(),
                         source: "Barbarian".to_string(),
                         uses: None,
                     },
@@ -156,7 +162,7 @@ impl CharacterClass {
                 level_1_features: vec![
                     Feature {
                         name: "Fighting Style".to_string(),
-                        description: "You adopt a particular style of fighting as your specialty.".to_string(),
+                        description: "You adopt a particular style of fighting as your specialty (Archery, Defense, Dueling, Great Weapon Fighting, Protection, or Two-Weapon Fighting).".to_string(),
                         source: "Fighter".to_string(),
                         uses: None,
                     },
@@ -169,6 +175,12 @@ impl CharacterClass {
                             maximum: 1,
                             recharge: RechargeType::ShortRest,
                         }),
+                    },
+                    Feature {
+                        name: "Weapon Mastery".to_string(),
+                        description: "You gain the Weapon Mastery property benefit for weapons you are proficient with.".to_string(),
+                        source: "Fighter".to_string(),
+                        uses: None,
                     },
                 ],
             },
@@ -213,24 +225,26 @@ impl CharacterClass {
                 base_hp: 10,
                 level_1_features: vec![
                     Feature {
-                        name: "Divine Sense".to_string(),
-                        description: "Detect celestials, fiends, and undead within 60 feet.".to_string(),
-                        source: "Paladin".to_string(),
-                        uses: Some(FeatureUses {
-                            current: 4, // 1 + CHA mod, assuming +3
-                            maximum: 4,
-                            recharge: RechargeType::LongRest,
-                        }),
-                    },
-                    Feature {
                         name: "Lay on Hands".to_string(),
-                        description: "You have a pool of 5 HP to restore with a touch.".to_string(),
+                        description: "You have a healing pool of 5 HP per paladin level. As an action, touch a creature to restore HP from this pool, or spend 5 HP to cure one disease or neutralize one poison.".to_string(),
                         source: "Paladin".to_string(),
                         uses: Some(FeatureUses {
                             current: 5,
                             maximum: 5,
                             recharge: RechargeType::LongRest,
                         }),
+                    },
+                    Feature {
+                        name: "Spellcasting".to_string(),
+                        description: "You can cast paladin spells using Charisma as your spellcasting ability. You prepare spells from the paladin spell list.".to_string(),
+                        source: "Paladin".to_string(),
+                        uses: None,
+                    },
+                    Feature {
+                        name: "Weapon Mastery".to_string(),
+                        description: "You gain the Weapon Mastery property benefit for weapons you are proficient with.".to_string(),
+                        source: "Paladin".to_string(),
+                        uses: None,
                     },
                 ],
             },
@@ -250,14 +264,24 @@ impl CharacterClass {
                 base_hp: 10,
                 level_1_features: vec![
                     Feature {
-                        name: "Favored Enemy".to_string(),
-                        description: "Choose a type of favored enemy. You have advantage on tracking them and recalling information about them.".to_string(),
+                        name: "Spellcasting".to_string(),
+                        description: "You can cast ranger spells using Wisdom as your spellcasting ability.".to_string(),
                         source: "Ranger".to_string(),
                         uses: None,
                     },
                     Feature {
-                        name: "Natural Explorer".to_string(),
-                        description: "Choose a favored terrain. You gain benefits when traveling and foraging in that terrain.".to_string(),
+                        name: "Favored Enemy".to_string(),
+                        description: "You always have Hunter's Mark prepared, and can cast it twice without expending a spell slot. You regain all uses on a long rest.".to_string(),
+                        source: "Ranger".to_string(),
+                        uses: Some(FeatureUses {
+                            current: 2,
+                            maximum: 2,
+                            recharge: RechargeType::LongRest,
+                        }),
+                    },
+                    Feature {
+                        name: "Weapon Mastery".to_string(),
+                        description: "You gain the Weapon Mastery property benefit for weapons you are proficient with.".to_string(),
                         source: "Ranger".to_string(),
                         uses: None,
                     },
@@ -296,6 +320,12 @@ impl CharacterClass {
                     Feature {
                         name: "Thieves' Cant".to_string(),
                         description: "You know Thieves' Cant, a secret mix of dialect, jargon, and code.".to_string(),
+                        source: "Rogue".to_string(),
+                        uses: None,
+                    },
+                    Feature {
+                        name: "Weapon Mastery".to_string(),
+                        description: "You gain the Weapon Mastery property benefit for weapons you are proficient with.".to_string(),
                         source: "Rogue".to_string(),
                         uses: None,
                     },

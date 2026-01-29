@@ -15,17 +15,20 @@ pub fn render_input_panel(ctx: &egui::Context, app_state: &mut AppState) {
             ui.horizontal(|ui| {
                 // Input label
                 ui.label(">");
+                ui.add_space(4.0);
 
                 // Check for key presses before creating the text edit
                 let enter_pressed = ctx.input(|i| i.key_pressed(egui::Key::Enter));
                 let up_pressed = ctx.input(|i| i.key_pressed(egui::Key::ArrowUp));
                 let down_pressed = ctx.input(|i| i.key_pressed(egui::Key::ArrowDown));
 
-                // Text input
+                // Text input - use proportional width for responsiveness
+                let available = ui.available_width();
+                let input_width = (available - 60.0).max(100.0); // Leave room for Send button, min 100px
                 let response = ui.add_sized(
-                    [ui.available_width() - 80.0, 30.0],
+                    [input_width, 30.0],
                     egui::TextEdit::singleline(&mut app_state.input_text)
-                        .hint_text("What do you do? (Up/Down for history)")
+                        .hint_text("What do you do?")
                         .interactive(!app_state.is_processing),
                 );
 
@@ -62,6 +65,8 @@ pub fn render_input_panel(ctx: &egui::Context, app_state: &mut AppState) {
                     response.request_focus();
                 }
 
+                ui.add_space(8.0);
+
                 // Send button
                 let send_enabled = !app_state.is_processing && !app_state.input_text.trim().is_empty();
                 if ui
@@ -75,10 +80,14 @@ pub fn render_input_panel(ctx: &egui::Context, app_state: &mut AppState) {
                 }
             });
 
+            ui.add_space(4.0);
+
             // Quick action buttons (disabled while processing)
             ui.horizontal(|ui| {
                 ui.add_space(16.0);
                 ui.add_enabled_ui(!app_state.is_processing, |ui| {
+                    ui.spacing_mut().item_spacing.x = 6.0; // Add spacing between buttons
+
                     // Combat actions (shown during combat)
                     if app_state.in_combat && app_state.is_player_turn {
                         if ui.small_button("Attack").clicked() {
@@ -94,22 +103,34 @@ pub fn render_input_panel(ctx: &egui::Context, app_state: &mut AppState) {
                             app_state.add_narrative(action.clone(), NarrativeType::PlayerAction, 0.0);
                             app_state.send_action(action);
                         }
+                        ui.add_space(8.0);
                         ui.separator();
+                        ui.add_space(8.0);
                     }
 
-                    // General actions
-                    if ui.small_button("Look Around").clicked() {
+                    // General actions - only useful ones
+                    if ui.small_button("Look").clicked() {
                         let action = "I look around".to_string();
                         app_state.add_narrative(action.clone(), NarrativeType::PlayerAction, 0.0);
                         app_state.send_action(action);
                     }
-                    if ui.small_button("Check Inventory").clicked() {
-                        let action = "I check my inventory".to_string();
-                        app_state.add_narrative(action.clone(), NarrativeType::PlayerAction, 0.0);
-                        app_state.send_action(action);
+                    if ui.small_button("Search").clicked() {
+                        app_state.input_text = "I search ".to_string();
                     }
-                    if ui.small_button("Rest").clicked() {
-                        app_state.input_text = "I want to take a ".to_string();
+                    if ui.small_button("Talk to").clicked() {
+                        app_state.input_text = "I talk to ".to_string();
+                    }
+
+                    // Cast spell button (only show if character has spells)
+                    let has_spells = !app_state.world.cantrips.is_empty()
+                        || !app_state.world.known_spells.is_empty();
+                    if has_spells {
+                        ui.add_space(4.0);
+                        ui.separator();
+                        ui.add_space(4.0);
+                        if ui.small_button("Cast...").clicked() {
+                            app_state.input_text = "I cast ".to_string();
+                        }
                     }
                 });
             });

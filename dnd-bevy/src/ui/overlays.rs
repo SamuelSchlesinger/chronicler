@@ -3,15 +3,21 @@
 use bevy_egui::egui;
 use dnd_core::world::{Ability, QuestStatus};
 
-use crate::state::AppState;
+use crate::state::{ActiveOverlay, AppState, CharacterSaveList, GameSaveList};
 
 /// Render the inventory overlay.
 pub fn render_inventory(ctx: &egui::Context, app_state: &AppState) {
+    // Use responsive sizing based on available screen
+    let screen = ctx.screen_rect();
+    let width = (screen.width() * 0.8).min(400.0).max(280.0);
+    let height = (screen.height() * 0.7).min(450.0).max(300.0);
+
     egui::Window::new("Inventory")
         .collapsible(false)
         .resizable(true)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-        .default_size([400.0, 500.0])
+        .default_size([width, height])
+        .max_size([500.0, 600.0])
         .show(ctx, |ui| {
             // Gold
             ui.horizontal(|ui| {
@@ -101,11 +107,17 @@ pub fn render_inventory(ctx: &egui::Context, app_state: &AppState) {
 
 /// Render the character sheet overlay.
 pub fn render_character_sheet(ctx: &egui::Context, app_state: &AppState) {
+    // Use responsive sizing based on available screen
+    let screen = ctx.screen_rect();
+    let width = (screen.width() * 0.85).min(500.0).max(320.0);
+    let height = (screen.height() * 0.8).min(550.0).max(350.0);
+
     egui::Window::new("Character Sheet")
         .collapsible(false)
         .resizable(true)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-        .default_size([500.0, 600.0])
+        .default_size([width, height])
+        .max_size([600.0, 700.0])
         .show(ctx, |ui| {
             // Header
             ui.horizontal(|ui| {
@@ -215,6 +227,84 @@ pub fn render_character_sheet(ctx: &egui::Context, app_state: &AppState) {
 
             ui.separator();
 
+            // Spellcasting section (if spellcaster)
+            let has_spells = !app_state.world.cantrips.is_empty()
+                || !app_state.world.known_spells.is_empty()
+                || app_state.world.spell_slots.iter().any(|(_, t)| *t > 0);
+
+            if has_spells {
+                ui.heading("Spellcasting");
+
+                // Spellcasting stats
+                ui.horizontal(|ui| {
+                    if let Some(ref ability) = app_state.world.spellcasting_ability {
+                        ui.label(format!("Ability: {}", ability));
+                    }
+                    if let Some(dc) = app_state.world.spell_save_dc {
+                        ui.separator();
+                        ui.label(format!("Save DC: {}", dc));
+                    }
+                    if let Some(atk) = app_state.world.spell_attack_bonus {
+                        ui.separator();
+                        ui.label(format!("Attack: +{}", atk));
+                    }
+                });
+
+                // Spell slots
+                let has_slots = app_state.world.spell_slots.iter().any(|(_, t)| *t > 0);
+                if has_slots {
+                    ui.add_space(4.0);
+                    ui.label(egui::RichText::new("Spell Slots").strong());
+                    ui.horizontal_wrapped(|ui| {
+                        for (i, (available, total)) in app_state.world.spell_slots.iter().enumerate() {
+                            if *total > 0 {
+                                let level = i + 1;
+                                let color = if *available > 0 {
+                                    egui::Color32::from_rgb(100, 180, 255)
+                                } else {
+                                    egui::Color32::DARK_GRAY
+                                };
+                                ui.label(
+                                    egui::RichText::new(format!("Lv{}: {}/{}", level, available, total))
+                                        .color(color),
+                                );
+                                ui.add_space(8.0);
+                            }
+                        }
+                    });
+                }
+
+                // Cantrips
+                if !app_state.world.cantrips.is_empty() {
+                    ui.add_space(4.0);
+                    ui.collapsing(
+                        egui::RichText::new(format!("Cantrips ({})", app_state.world.cantrips.len())).strong(),
+                        |ui| {
+                            for cantrip in &app_state.world.cantrips {
+                                ui.label(format!("• {}", cantrip));
+                            }
+                        },
+                    );
+                }
+
+                // Known/Prepared Spells
+                if !app_state.world.known_spells.is_empty() {
+                    ui.add_space(4.0);
+                    ui.collapsing(
+                        egui::RichText::new(format!("Spells ({})", app_state.world.known_spells.len())).strong(),
+                        |ui| {
+                            egui::ScrollArea::vertical().max_height(150.0).show(ui, |ui| {
+                                for spell in &app_state.world.known_spells {
+                                    ui.label(format!("• {}", spell));
+                                }
+                            });
+                        },
+                    );
+                }
+
+                ui.separator();
+            }
+
             // Conditions
             if !app_state.world.conditions.is_empty() {
                 ui.heading("Active Conditions");
@@ -240,11 +330,16 @@ pub fn render_character_sheet(ctx: &egui::Context, app_state: &AppState) {
 
 /// Render the quest log overlay.
 pub fn render_quest_log(ctx: &egui::Context, app_state: &AppState) {
+    let screen = ctx.screen_rect();
+    let width = (screen.width() * 0.8).min(450.0).max(280.0);
+    let height = (screen.height() * 0.7).min(450.0).max(300.0);
+
     egui::Window::new("Quest Log")
         .collapsible(false)
         .resizable(true)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-        .default_size([450.0, 500.0])
+        .default_size([width, height])
+        .max_size([550.0, 600.0])
         .show(ctx, |ui| {
             if app_state.world.quests.is_empty() {
                 ui.vertical_centered(|ui| {
@@ -359,70 +454,99 @@ pub fn render_quest_log(ctx: &egui::Context, app_state: &AppState) {
 
 /// Render the help overlay.
 pub fn render_help(ctx: &egui::Context) {
+    let screen = ctx.screen_rect();
+    let width = (screen.width() * 0.8).min(450.0).max(300.0);
+    let height = (screen.height() * 0.75).min(480.0).max(320.0);
+
     egui::Window::new("Help")
         .collapsible(false)
-        .resizable(false)
+        .resizable(true)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-        .default_size([400.0, 400.0])
+        .default_size([width, height])
+        .max_size([550.0, 600.0])
         .show(ctx, |ui| {
             ui.heading("D&D: AI Dungeon Master");
             ui.separator();
 
-            ui.heading("How to Play");
-            ui.label("Type natural language commands to interact with the world.");
-            ui.label("The AI Dungeon Master will respond to your actions.");
-            ui.add_space(10.0);
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                ui.heading("How to Play");
+                ui.label("Type natural language commands to interact with the world.");
+                ui.label("The AI Dungeon Master will respond to your actions.");
+                ui.add_space(10.0);
 
-            ui.heading("Example Commands");
-            ui.label("• \"I look around the room\"");
-            ui.label("• \"I attack the goblin with my sword\"");
-            ui.label("• \"I try to pick the lock\"");
-            ui.label("• \"I cast fireball at the enemies\"");
-            ui.label("• \"I search the chest\"");
-            ui.add_space(10.0);
+                ui.heading("Example Commands");
+                ui.label("• \"I look around the room\"");
+                ui.label("• \"I attack the goblin with my sword\"");
+                ui.label("• \"I try to pick the lock\"");
+                ui.label("• \"I cast fireball at the enemies\"");
+                ui.label("• \"I search the chest\"");
+                ui.add_space(10.0);
 
-            ui.heading("Keyboard Shortcuts");
-            ui.add_space(4.0);
+                ui.heading("Keyboard Shortcuts");
+                ui.add_space(4.0);
 
-            ui.label(egui::RichText::new("Always Available:").strong().color(egui::Color32::from_rgb(218, 165, 32)));
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Ctrl+S / Cmd+S").strong());
-                ui.label("- Quick Save");
-            });
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Up / Down").strong());
-                ui.label("- Browse command history");
-            });
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Enter").strong());
-                ui.label("- Send command");
-            });
+                ui.label(
+                    egui::RichText::new("Global:")
+                        .strong()
+                        .color(egui::Color32::from_rgb(218, 165, 32)),
+                );
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("Ctrl+Q / Cmd+Q").strong());
+                    ui.label("- Quit game");
+                });
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("Ctrl+S / Cmd+S").strong());
+                    ui.label("- Quick Save");
+                });
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("Escape").strong());
+                    ui.label("- Close overlay / Cancel");
+                });
 
-            ui.add_space(8.0);
-            ui.label(
-                egui::RichText::new("When not typing:")
-                    .strong()
-                    .color(egui::Color32::from_rgb(218, 165, 32)),
-            );
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("I").strong());
-                ui.label("- Inventory");
-            });
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("C").strong());
-                ui.label("- Character Sheet");
-            });
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Shift+Q").strong());
-                ui.label("- Quest Log");
-            });
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("F1 / ?").strong());
-                ui.label("- Help (this screen)");
-            });
-            ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("Escape").strong());
-                ui.label("- Close overlay");
+                ui.add_space(8.0);
+                ui.label(
+                    egui::RichText::new("Input:")
+                        .strong()
+                        .color(egui::Color32::from_rgb(218, 165, 32)),
+                );
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("Enter").strong());
+                    ui.label("- Send command");
+                });
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("Up / Down").strong());
+                    ui.label("- Browse command history");
+                });
+
+                ui.add_space(8.0);
+                ui.label(
+                    egui::RichText::new("Overlays (when not typing):")
+                        .strong()
+                        .color(egui::Color32::from_rgb(218, 165, 32)),
+                );
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("I").strong());
+                    ui.label("- Inventory");
+                });
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("C").strong());
+                    ui.label("- Character Sheet");
+                });
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("Shift+Q").strong());
+                    ui.label("- Quest Log");
+                });
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("F1 / ?").strong());
+                    ui.label("- Help (this screen)");
+                });
+
+                ui.add_space(10.0);
+                ui.heading("Tips");
+                ui.label("• Be descriptive - the DM understands natural language");
+                ui.label("• Check your inventory before adventures");
+                ui.label("• Save often using Ctrl+S");
+                ui.label("• Use the quick action buttons for common actions");
             });
 
             ui.separator();
@@ -434,15 +558,22 @@ pub fn render_help(ctx: &egui::Context) {
         });
 }
 
-/// Render the settings overlay.
-pub fn render_settings(ctx: &egui::Context, app_state: &mut AppState) {
+/// Render the settings overlay. Returns true if user wants to return to main menu.
+pub fn render_settings(ctx: &egui::Context, app_state: &mut AppState) -> bool {
+    let mut return_to_menu = false;
+
+    let screen = ctx.screen_rect();
+    let width = (screen.width() * 0.75).min(400.0).max(280.0);
+    let height = (screen.height() * 0.65).min(380.0).max(280.0);
+
     egui::Window::new("Settings")
         .collapsible(false)
         .resizable(true)
         .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
-        .default_size([400.0, 450.0])
+        .default_size([width, height])
+        .max_size([500.0, 500.0])
         .show(ctx, |ui| {
-            ui.heading("Game Settings");
+            ui.heading("Settings");
             ui.separator();
 
             // Display section
@@ -458,44 +589,6 @@ pub fn render_settings(ctx: &egui::Context, app_state: &mut AppState) {
                             app_state.character_panel_expanded = false;
                         }
                     });
-
-                    ui.add_space(4.0);
-                    ui.label(
-                        egui::RichText::new("Font scaling and other display options coming soon")
-                            .small()
-                            .italics()
-                            .color(egui::Color32::GRAY),
-                    );
-                },
-            );
-
-            ui.add_space(8.0);
-
-            // Audio section (placeholder)
-            ui.collapsing(
-                egui::RichText::new("Audio").strong(),
-                |ui| {
-                    ui.label(
-                        egui::RichText::new("Audio settings coming soon")
-                            .small()
-                            .italics()
-                            .color(egui::Color32::GRAY),
-                    );
-                },
-            );
-
-            ui.add_space(8.0);
-
-            // Gameplay section
-            ui.collapsing(
-                egui::RichText::new("Gameplay").strong(),
-                |ui| {
-                    ui.label(
-                        egui::RichText::new("Gameplay options coming soon")
-                            .small()
-                            .italics()
-                            .color(egui::Color32::GRAY),
-                    );
                 },
             );
 
@@ -506,6 +599,7 @@ pub fn render_settings(ctx: &egui::Context, app_state: &mut AppState) {
                 egui::RichText::new("Save Files").strong(),
                 |ui| {
                     ui.label("Save directory: saves/");
+                    ui.label("Character saves: saves/characters/");
 
                     ui.add_space(4.0);
 
@@ -528,6 +622,22 @@ pub fn render_settings(ctx: &egui::Context, app_state: &mut AppState) {
 
             ui.add_space(8.0);
 
+            // Keyboard shortcuts
+            ui.collapsing(
+                egui::RichText::new("Keyboard Shortcuts").strong(),
+                |ui| {
+                    ui.label("Ctrl+S / Cmd+S - Save game");
+                    ui.label("Ctrl+Q / Cmd+Q - Quit game");
+                    ui.label("I - Inventory");
+                    ui.label("C - Character sheet");
+                    ui.label("Shift+Q - Quest log");
+                    ui.label("F1 / ? - Help");
+                    ui.label("Escape - Close overlay");
+                },
+            );
+
+            ui.add_space(8.0);
+
             // About section
             ui.collapsing(
                 egui::RichText::new("About").strong(),
@@ -539,12 +649,144 @@ pub fn render_settings(ctx: &egui::Context, app_state: &mut AppState) {
                     ui.label("A text-based adventure powered by AI");
                     ui.add_space(4.0);
                     ui.label(
-                        egui::RichText::new("Built with Bevy + egui")
+                        egui::RichText::new("Built with Rust, Bevy, and Claude")
                             .small()
                             .color(egui::Color32::GRAY),
                     );
                 },
             );
+
+            ui.add_space(16.0);
+            ui.separator();
+
+            // Game actions
+            ui.horizontal(|ui| {
+                if ui.button("Return to Main Menu").clicked() {
+                    return_to_menu = true;
+                    app_state.overlay = ActiveOverlay::None;
+                }
+
+                if ui
+                    .button(egui::RichText::new("Quit Game").color(egui::Color32::from_rgb(200, 100, 100)))
+                    .clicked()
+                {
+                    std::process::exit(0);
+                }
+            });
+
+            ui.add_space(8.0);
+            ui.label(
+                egui::RichText::new("Press Escape to close")
+                    .small()
+                    .color(egui::Color32::GRAY),
+            );
+        });
+
+    return_to_menu
+}
+
+/// Render the load character overlay.
+pub fn render_load_character(
+    ctx: &egui::Context,
+    app_state: &mut AppState,
+    save_list: &mut CharacterSaveList,
+) -> Option<dnd_core::world::Character> {
+    let mut selected_character = None;
+
+    let screen = ctx.screen_rect();
+    let width = (screen.width() * 0.8).min(450.0).max(300.0);
+    let height = (screen.height() * 0.65).min(400.0).max(280.0);
+
+    egui::Window::new("Load Character")
+        .collapsible(false)
+        .resizable(true)
+        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+        .default_size([width, height])
+        .max_size([550.0, 500.0])
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.heading("Saved Characters");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("Refresh").clicked() {
+                        // Reset to trigger a reload
+                        save_list.saves.clear();
+                        save_list.loaded = false;
+                        save_list.loading = false;
+                        save_list.error = None;
+                        save_list.selected = None;
+                    }
+                });
+            });
+            ui.separator();
+
+            if save_list.loading {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label("Loading saved characters...");
+                });
+            } else if let Some(ref err) = save_list.error {
+                ui.colored_label(egui::Color32::RED, err);
+            } else if save_list.saves.is_empty() {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(50.0);
+                    ui.label(
+                        egui::RichText::new("No saved characters found.")
+                            .italics()
+                            .color(egui::Color32::GRAY),
+                    );
+                    ui.add_space(10.0);
+                    ui.label("Create a character first!");
+                });
+            } else {
+                egui::ScrollArea::vertical()
+                    .max_height(280.0)
+                    .show(ui, |ui| {
+                        for (i, save) in save_list.saves.iter().enumerate() {
+                            let is_selected = save_list.selected == Some(i);
+                            let meta = &save.metadata;
+
+                            let text = format!(
+                                "{} - Level {} {} {}{}",
+                                meta.name,
+                                meta.level,
+                                meta.race,
+                                meta.class,
+                                if meta.has_backstory { " (has backstory)" } else { "" }
+                            );
+
+                            if ui.selectable_label(is_selected, text).clicked() {
+                                save_list.selected = Some(i);
+                            }
+                        }
+                    });
+
+                ui.separator();
+
+                ui.horizontal(|ui| {
+                    let can_load = save_list.selected.is_some();
+
+                    if ui.add_enabled(can_load, egui::Button::new("Load & Play")).clicked() {
+                        if let Some(idx) = save_list.selected {
+                            let path = save_list.saves[idx].path.clone();
+                            // Load the character synchronously for simplicity
+                            let rt = tokio::runtime::Runtime::new().unwrap();
+                            match rt.block_on(dnd_core::SavedCharacter::load_json(&path)) {
+                                Ok(saved) => {
+                                    selected_character = Some(saved.character);
+                                    app_state.overlay = ActiveOverlay::None;
+                                }
+                                Err(e) => {
+                                    save_list.error = Some(format!("Failed to load: {e}"));
+                                }
+                            }
+                        }
+                    }
+
+                    if ui.button("Cancel").clicked() {
+                        app_state.overlay = ActiveOverlay::None;
+                    }
+                });
+            }
 
             ui.separator();
             ui.label(
@@ -553,4 +795,106 @@ pub fn render_settings(ctx: &egui::Context, app_state: &mut AppState) {
                     .color(egui::Color32::GRAY),
             );
         });
+
+    selected_character
+}
+
+/// Render the load game overlay. Returns the path to load if a game is selected.
+pub fn render_load_game(
+    ctx: &egui::Context,
+    app_state: &mut AppState,
+    save_list: &mut GameSaveList,
+) -> Option<String> {
+    let mut selected_path = None;
+
+    let screen = ctx.screen_rect();
+    let width = (screen.width() * 0.8).min(480.0).max(300.0);
+    let height = (screen.height() * 0.65).min(400.0).max(280.0);
+
+    egui::Window::new("Load Game")
+        .collapsible(false)
+        .resizable(true)
+        .anchor(egui::Align2::CENTER_CENTER, [0.0, 0.0])
+        .default_size([width, height])
+        .max_size([600.0, 500.0])
+        .show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.heading("Saved Games");
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.button("Refresh").clicked() {
+                        save_list.saves.clear();
+                        save_list.loaded = false;
+                        save_list.loading = false;
+                        save_list.error = None;
+                        save_list.selected = None;
+                    }
+                });
+            });
+            ui.separator();
+
+            if save_list.loading {
+                ui.horizontal(|ui| {
+                    ui.spinner();
+                    ui.label("Loading saved games...");
+                });
+            } else if let Some(ref err) = save_list.error {
+                ui.colored_label(egui::Color32::RED, err);
+            } else if save_list.saves.is_empty() {
+                ui.vertical_centered(|ui| {
+                    ui.add_space(50.0);
+                    ui.label(
+                        egui::RichText::new("No saved games found.")
+                            .italics()
+                            .color(egui::Color32::GRAY),
+                    );
+                    ui.add_space(10.0);
+                    ui.label("Start a New Game and save your progress!");
+                });
+            } else {
+                egui::ScrollArea::vertical()
+                    .max_height(280.0)
+                    .show(ui, |ui| {
+                        for (i, save) in save_list.saves.iter().enumerate() {
+                            let is_selected = save_list.selected == Some(i);
+
+                            let text = format!(
+                                "{} - {} (Level {})\nSaved: {}",
+                                save.campaign_name,
+                                save.character_name,
+                                save.character_level,
+                                save.saved_at
+                            );
+
+                            if ui.selectable_label(is_selected, text).clicked() {
+                                save_list.selected = Some(i);
+                            }
+                        }
+                    });
+
+                ui.separator();
+
+                ui.horizontal(|ui| {
+                    let can_load = save_list.selected.is_some();
+
+                    if ui.add_enabled(can_load, egui::Button::new("Load Game")).clicked() {
+                        if let Some(idx) = save_list.selected {
+                            selected_path = Some(save_list.saves[idx].path.clone());
+                        }
+                    }
+
+                    if ui.button("Cancel").clicked() {
+                        app_state.overlay = ActiveOverlay::None;
+                    }
+                });
+            }
+
+            ui.separator();
+            ui.label(
+                egui::RichText::new("Press Escape to close")
+                    .small()
+                    .color(egui::Color32::GRAY),
+            );
+        });
+
+    selected_path
 }

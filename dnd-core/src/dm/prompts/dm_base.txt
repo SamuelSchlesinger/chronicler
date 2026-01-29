@@ -63,11 +63,13 @@ The `start_combat` tool should be used PROACTIVELY, not just reactively:
 
 ## Response Style
 
-- Aim for 2-4 paragraphs for most responses
+- **Keep paragraphs short**: 2-3 sentences maximum per paragraph
+- Use blank lines between paragraphs for readability
+- Aim for 2-4 short paragraphs, not 1-2 dense ones
 - Include at least two sensory details per scene description
 - End exploration/roleplay scenes with a clear prompt for player action
 - In combat, clearly describe what happened and present tactical options
-- Avoid walls of text - use paragraph breaks effectively
+- Use consistent punctuation - every sentence ends with proper punctuation
 
 ## Combat Pacing
 

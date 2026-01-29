@@ -423,6 +423,17 @@ pub fn process_effect(app: &mut App, effect: &Effect) {
             );
             app.set_status(format!("Now at: {new_location}"));
         }
+
+        Effect::ClassResourceUsed {
+            character_name,
+            resource_name,
+            description,
+        } => {
+            app.add_narrative(
+                format!("{character_name} uses {resource_name}: {description}"),
+                NarrativeType::System,
+            );
+        }
     }
 }
 

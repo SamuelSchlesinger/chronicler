@@ -5,7 +5,7 @@
 
 use crate::world::{
     Ability, AbilityScores, Background, Character, CharacterClass, ClassLevel, HitDice, HitPoints,
-    ProficiencyLevel, Race, RaceType, Skill, Speed,
+    ProficiencyLevel, Race, RaceType, Skill, SlotInfo, Speed, SpellSlots, SpellcastingData,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -80,6 +80,8 @@ pub struct CharacterBuilder {
     selected_skills: Vec<Skill>,
     /// For Half-Elf: two additional +1 ability bonuses
     half_elf_bonus_abilities: Option<[Ability; 2]>,
+    /// Optional character backstory
+    backstory: Option<String>,
 }
 
 /// Error from character building.
@@ -199,6 +201,12 @@ impl CharacterBuilder {
         self
     }
 
+    /// Set the character's backstory.
+    pub fn backstory(mut self, backstory: impl Into<String>) -> Self {
+        self.backstory = Some(backstory.into());
+        self
+    }
+
     /// Build the character, returning an error if any required field is missing.
     pub fn build(self) -> Result<Character, BuilderError> {
         let name = self.name.ok_or(BuilderError::MissingName)?;
@@ -302,6 +310,116 @@ impl CharacterBuilder {
 
         // Set speed
         character.speed = Speed::new(race.base_speed());
+
+        // Set backstory
+        character.backstory = self.backstory;
+
+        // Initialize spellcasting for spellcasting classes
+        if class.is_spellcaster() {
+            if let Some(ability) = class.spellcasting_ability() {
+                let mut spell_slots = SpellSlots::new();
+
+                // Set up level 1 spell slots based on class
+                match class {
+                    CharacterClass::Warlock => {
+                        // Pact Magic: 1 first-level slot at level 1
+                        spell_slots.slots[0] = SlotInfo { total: 1, used: 0 };
+                    }
+                    CharacterClass::Bard
+                    | CharacterClass::Cleric
+                    | CharacterClass::Druid
+                    | CharacterClass::Sorcerer
+                    | CharacterClass::Wizard => {
+                        // Standard spellcasting: 2 first-level slots at level 1
+                        spell_slots.slots[0] = SlotInfo { total: 2, used: 0 };
+                    }
+                    _ => {}
+                }
+
+                // Default cantrips based on class (using spells from the database)
+                let cantrips_known = match class {
+                    CharacterClass::Wizard => {
+                        vec![
+                            "Fire Bolt".to_string(),
+                            "Light".to_string(),
+                            "Mage Hand".to_string(),
+                        ]
+                    }
+                    CharacterClass::Sorcerer => {
+                        vec![
+                            "Fire Bolt".to_string(),
+                            "Ray of Frost".to_string(),
+                            "Light".to_string(),
+                            "Prestidigitation".to_string(),
+                        ]
+                    }
+                    CharacterClass::Warlock => {
+                        vec![
+                            "Eldritch Blast".to_string(),
+                            "Chill Touch".to_string(),
+                        ]
+                    }
+                    CharacterClass::Cleric => {
+                        vec![
+                            "Sacred Flame".to_string(),
+                            "Light".to_string(),
+                            "Spare the Dying".to_string(),
+                        ]
+                    }
+                    CharacterClass::Bard => {
+                        vec!["Light".to_string(), "Mage Hand".to_string()]
+                    }
+                    CharacterClass::Druid => {
+                        vec!["Produce Flame".to_string(), "Druidcraft".to_string()]
+                    }
+                    _ => vec![],
+                };
+
+                // Default spells known based on class
+                let spells_known = match class {
+                    CharacterClass::Wizard => {
+                        vec![
+                            "Magic Missile".to_string(),
+                            "Shield".to_string(),
+                            "Burning Hands".to_string(),
+                            "Detect Magic".to_string(),
+                            "Sleep".to_string(),
+                            "Mage Armor".to_string(),
+                        ]
+                    }
+                    CharacterClass::Sorcerer => {
+                        vec!["Magic Missile".to_string(), "Shield".to_string()]
+                    }
+                    CharacterClass::Warlock => {
+                        // Warlocks know 2 spells at level 1
+                        // Using shared spells since Hex isn't in the DB yet
+                        vec!["Charm Person".to_string(), "Hellish Rebuke".to_string()]
+                    }
+                    CharacterClass::Bard => {
+                        vec![
+                            "Cure Wounds".to_string(),
+                            "Healing Word".to_string(),
+                            "Charm Person".to_string(),
+                            "Dissonant Whispers".to_string(),
+                        ]
+                    }
+                    // Clerics and Druids prepare spells, so no spells_known
+                    _ => vec![],
+                };
+
+                // For prepared casters, spells_prepared starts empty
+                // (player chooses after long rest)
+                let spells_prepared = vec![];
+
+                character.spellcasting = Some(SpellcastingData {
+                    ability,
+                    spells_known,
+                    spells_prepared,
+                    cantrips_known,
+                    spell_slots,
+                });
+            }
+        }
 
         Ok(character)
     }
@@ -478,5 +596,154 @@ mod tests {
             let score = roll_4d6_drop_lowest();
             assert!((3..=18).contains(&score));
         }
+    }
+
+    #[test]
+    fn test_build_with_backstory() {
+        let backstory = "A former soldier who left the army after witnessing too much bloodshed.";
+
+        let character = CharacterBuilder::new()
+            .name("Marcus")
+            .race(RaceType::Human)
+            .class(CharacterClass::Fighter)
+            .background(Background::Soldier)
+            .standard_array([
+                (15, Ability::Strength),
+                (14, Ability::Constitution),
+                (13, Ability::Dexterity),
+                (12, Ability::Wisdom),
+                (10, Ability::Intelligence),
+                (8, Ability::Charisma),
+            ])
+            .skills(vec![Skill::Athletics, Skill::Perception])
+            .backstory(backstory)
+            .build()
+            .expect("Should build successfully");
+
+        assert_eq!(character.name, "Marcus");
+        assert!(character.backstory.is_some());
+        assert_eq!(character.backstory.as_ref().unwrap(), backstory);
+    }
+
+    #[test]
+    fn test_build_without_backstory() {
+        let character = CharacterBuilder::new()
+            .name("Jane")
+            .race(RaceType::Elf)
+            .class(CharacterClass::Wizard)
+            .background(Background::Sage)
+            .standard_array([
+                (15, Ability::Intelligence),
+                (14, Ability::Dexterity),
+                (13, Ability::Constitution),
+                (12, Ability::Wisdom),
+                (10, Ability::Strength),
+                (8, Ability::Charisma),
+            ])
+            .skills(vec![Skill::Arcana, Skill::Investigation])
+            .build()
+            .expect("Should build successfully");
+
+        assert_eq!(character.name, "Jane");
+        assert!(character.backstory.is_none());
+    }
+
+    #[test]
+    fn test_wizard_gets_spellcasting() {
+        let character = CharacterBuilder::new()
+            .name("Merlin")
+            .race(RaceType::Human)
+            .class(CharacterClass::Wizard)
+            .background(Background::Sage)
+            .standard_array([
+                (15, Ability::Intelligence),
+                (14, Ability::Constitution),
+                (13, Ability::Dexterity),
+                (12, Ability::Wisdom),
+                (10, Ability::Strength),
+                (8, Ability::Charisma),
+            ])
+            .skills(vec![Skill::Arcana, Skill::Investigation])
+            .build()
+            .expect("Should build successfully");
+
+        // Wizard should have spellcasting initialized
+        assert!(character.spellcasting.is_some());
+        let spellcasting = character.spellcasting.as_ref().unwrap();
+
+        // Wizard uses Intelligence
+        assert_eq!(spellcasting.ability, Ability::Intelligence);
+
+        // Wizard gets 3 cantrips at level 1
+        assert_eq!(spellcasting.cantrips_known.len(), 3);
+        assert!(spellcasting.cantrips_known.contains(&"Fire Bolt".to_string()));
+
+        // Wizard gets 6 spells at level 1
+        assert_eq!(spellcasting.spells_known.len(), 6);
+        assert!(spellcasting.spells_known.contains(&"Magic Missile".to_string()));
+
+        // Wizard gets 2 first-level slots at level 1
+        assert_eq!(spellcasting.spell_slots.slots[0].total, 2);
+        assert_eq!(spellcasting.spell_slots.slots[0].used, 0);
+    }
+
+    #[test]
+    fn test_warlock_gets_pact_magic() {
+        let character = CharacterBuilder::new()
+            .name("Shadowbane")
+            .race(RaceType::Tiefling)
+            .class(CharacterClass::Warlock)
+            .background(Background::Criminal)
+            .standard_array([
+                (15, Ability::Charisma),
+                (14, Ability::Constitution),
+                (13, Ability::Dexterity),
+                (12, Ability::Intelligence),
+                (10, Ability::Wisdom),
+                (8, Ability::Strength),
+            ])
+            .skills(vec![Skill::Arcana, Skill::Intimidation])
+            .build()
+            .expect("Should build successfully");
+
+        // Warlock should have spellcasting
+        assert!(character.spellcasting.is_some());
+        let spellcasting = character.spellcasting.as_ref().unwrap();
+
+        // Warlock uses Charisma
+        assert_eq!(spellcasting.ability, Ability::Charisma);
+
+        // Warlock gets 2 cantrips at level 1
+        assert_eq!(spellcasting.cantrips_known.len(), 2);
+        assert!(spellcasting.cantrips_known.contains(&"Eldritch Blast".to_string()));
+
+        // Warlock knows 2 spells at level 1
+        assert_eq!(spellcasting.spells_known.len(), 2);
+
+        // Warlock gets only 1 first-level slot (Pact Magic)
+        assert_eq!(spellcasting.spell_slots.slots[0].total, 1);
+    }
+
+    #[test]
+    fn test_fighter_has_no_spellcasting() {
+        let character = CharacterBuilder::new()
+            .name("Conan")
+            .race(RaceType::Human)
+            .class(CharacterClass::Fighter)
+            .background(Background::Soldier)
+            .standard_array([
+                (15, Ability::Strength),
+                (14, Ability::Constitution),
+                (13, Ability::Dexterity),
+                (12, Ability::Wisdom),
+                (10, Ability::Intelligence),
+                (8, Ability::Charisma),
+            ])
+            .skills(vec![Skill::Athletics, Skill::Perception])
+            .build()
+            .expect("Should build successfully");
+
+        // Fighter is not a spellcaster at level 1
+        assert!(character.spellcasting.is_none());
     }
 }
