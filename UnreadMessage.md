@@ -2,81 +2,81 @@
 
 ## What was done
 
-Fixed multiple TUI issues for better responsiveness and readability:
+Continued implementing D&D 5e mechanics and UI overlays from the previous session.
 
-1. **Scroll synchronization** - Scroll was broken because `scroll_to_bottom()` set a huge value that scroll_up couldn't properly decrement. Added `estimate_max_scroll()` to cap scroll position.
+### New Features Added This Session
 
-2. **HP gauge readability** - Changed from green foreground (hard to read) to green background with contrasting black/white text.
+#### 1. Death Save Rolls (D&D 5e Rules)
+- Added `Intent::DeathSave { character_id }` for making death saving throws
+- Added `Effect::DeathSaveSuccess { target_id, roll, total_successes }`
+- Added `Effect::Stabilized { target_id }` (3 successes = stabilized)
+- Implemented `resolve_death_save()` in `dnd-core/src/rules.rs` with full D&D 5e rules:
+  - d20 roll, 10+ is success
+  - Natural 20: regain 1 HP and consciousness, reset death saves
+  - Natural 1: counts as 2 failures
+  - 3 successes: stabilized (unconscious but stable)
+  - 3 failures: death
+- Added `death_save` DM tool in `dnd-core/src/dm/tools.rs`
+- Added UI effect handlers in `dnd/src/effects.rs`
 
-3. **Dice roll text wrapping** - Added `Wrap` to prevent skill check purpose text from being cut off.
+#### 2. Concentration Checks (D&D 5e Rules)
+- Added `Intent::ConcentrationCheck { character_id, damage_taken, spell_name }`
+- Added `Effect::ConcentrationBroken { character_id, spell_name, damage_taken, roll, dc }`
+- Added `Effect::ConcentrationMaintained { character_id, spell_name, roll, dc }`
+- Implemented `resolve_concentration_check()` in `dnd-core/src/rules.rs`:
+  - Constitution saving throw
+  - DC = max(10, damage_taken / 2) per D&D 5e rules
+  - Success maintains concentration, failure breaks it
+- Added `concentration_check` DM tool
+- Added UI effect handlers
 
-4. **Player action visibility** - Player actions no longer auto-scroll, so users can see their input. Added explicit `stdout().flush()` before async wait.
+#### 3. Quest Log Overlay (Shift+Q)
+- Added `Overlay::QuestLog` variant
+- Added `quests: Vec<Quest>` to `WorldUpdate` struct in `dnd/src/ai_worker.rs`
+- Implemented `render_quest_log_overlay()` in `dnd/src/ui/render.rs`:
+  - Shows Active quests with objectives (completed/incomplete markers)
+  - Shows Completed quests (green)
+  - Shows Failed/Abandoned quests (red)
+  - Shows "No quests yet" message if empty
+- Added `toggle_quest_log()` method to `App`
+- Added Shift+Q keybinding in `dnd/src/events.rs`
+- Updated hotkey bar to show "Q:quest" shortcut
+- Updated help overlay to document Shift+Q
 
-## Current state
+## Current State
 
-- All TUI fixes committed
-- Tests passing, clippy clean
-- Ready for async UI refactor
+- All 90 tests pass in dnd-core
+- Build compiles cleanly (only pre-existing dead code warnings in dnd/)
+- Death saves, concentration checks, and quest log overlay are fully implemented
 
-## Next steps: Async UI Architecture
+## Files Modified This Session
 
-The current main loop blocks during AI processing, freezing the UI. Here's the plan to make it responsive:
+| File | Changes |
+|------|---------|
+| `dnd-core/src/rules.rs` | Added DeathSave/ConcentrationCheck intents, new effects, resolution methods |
+| `dnd-core/src/dm/tools.rs` | Added death_save and concentration_check tools |
+| `dnd/src/effects.rs` | Added UI handlers for new effects (DeathSaveSuccess, Stabilized, ConcentrationBroken, ConcentrationMaintained) |
+| `dnd/src/ai_worker.rs` | Added quests field to WorldUpdate |
+| `dnd/src/ui/render.rs` | Added QuestLog overlay, render_quest_log_overlay(), updated help text |
+| `dnd/src/app.rs` | Added toggle_quest_log() method |
+| `dnd/src/events.rs` | Added Shift+Q keybinding, Q to close quest log |
+| `dnd/src/ui/widgets/status_bar.rs` | Added Q:quest to hotkey bar |
 
-### Phase 1: Background AI Task
+## Known Limitations
 
-**Files to modify:**
-- `dnd/src/app.rs` - Add task handle storage
-- `dnd/src/main.rs` - Spawn AI task instead of awaiting inline
+- No weight/encumbrance enforcement yet
+- Attunement for magical items is deferred
+- No dual wielding support
+- Critical hits on unconscious targets don't auto-crit
+- Journal overlay (Shift+J) is still a placeholder
 
-**Changes:**
-```rust
-// In App struct:
-ai_task: Option<tokio::task::JoinHandle<Result<DmResponse, SessionError>>>,
+## Next Steps
 
-// In main loop, instead of:
-app.process_player_input_without_echo(&input).await;
+### Core Mechanics
+1. Trigger concentration checks automatically when a concentrating character takes damage
+2. Trigger death save rolls automatically on player's turn when at 0 HP
+3. Add weight/encumbrance enforcement
 
-// Do:
-let session_clone = app.session.clone(); // Need to make session Clone or use Arc
-let input_clone = input.clone();
-app.ai_task = Some(tokio::spawn(async move {
-    session_clone.player_action(&input_clone).await
-}));
-
-// Then each loop iteration, check:
-if let Some(task) = &mut app.ai_task {
-    if task.is_finished() {
-        let result = app.ai_task.take().unwrap().await.unwrap();
-        // Process result...
-    }
-}
-```
-
-### Phase 2: Streaming Text Display
-
-**Files to modify:**
-- `dnd-core/src/session.rs` - Add streaming method
-- `claude/src/lib.rs` - Already has streaming support
-- `dnd/src/app.rs` - Handle streaming chunks
-
-**The `streaming_text` field already exists** in App and NarrativeWidget renders it with a cursor indicator. Just need to feed it data.
-
-### Phase 3: Cancellation Support
-
-- Allow Ctrl+C or Escape to cancel pending AI request
-- Use `tokio::select!` or `AbortHandle`
-
-### Considerations
-
-1. **Session cloning** - `GameSession` contains `DungeonMaster` which has non-Clone types. Options:
-   - Wrap in `Arc<Mutex<>>`
-   - Extract just the needed data for AI call
-   - Use channels to communicate with a dedicated AI task
-
-2. **State consistency** - Ensure game state isn't modified while AI is processing
-
-3. **Error handling** - Handle task panics gracefully
-
-## Known issues
-
-- Many other files have uncommitted changes from previous sessions (run `git status` to see)
+### UI Enhancements
+1. Implement Journal overlay (Shift+J) - notes and game events log
+2. Narrative widget scroll estimation uses byte length - low priority fix

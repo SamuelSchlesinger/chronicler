@@ -51,9 +51,19 @@ fn expand_tool(input: DeriveInput) -> syn::Result<TokenStream2> {
     let fields = match &input.data {
         syn::Data::Struct(data) => match &data.fields {
             syn::Fields::Named(named) => &named.named,
-            _ => return Err(syn::Error::new_spanned(input, "Tool derive only supports structs with named fields")),
+            _ => {
+                return Err(syn::Error::new_spanned(
+                    input,
+                    "Tool derive only supports structs with named fields",
+                ))
+            }
         },
-        _ => return Err(syn::Error::new_spanned(input, "Tool derive only supports structs")),
+        _ => {
+            return Err(syn::Error::new_spanned(
+                input,
+                "Tool derive only supports structs",
+            ))
+        }
     };
 
     // Generate JSON schema for properties
@@ -152,13 +162,11 @@ fn get_tool_name(input: &DeriveInput) -> syn::Result<String> {
 fn get_field_name(field: &Field) -> syn::Result<String> {
     for attr in &field.attrs {
         if attr.path().is_ident("tool") {
-            if let Ok(meta) = attr.parse_args::<Meta>() {
-                if let Meta::NameValue(nv) = meta {
-                    if nv.path.is_ident("rename") {
-                        if let syn::Expr::Lit(expr_lit) = &nv.value {
-                            if let Lit::Str(s) = &expr_lit.lit {
-                                return Ok(s.value());
-                            }
+            if let Ok(Meta::NameValue(nv)) = attr.parse_args::<Meta>() {
+                if nv.path.is_ident("rename") {
+                    if let syn::Expr::Lit(expr_lit) = &nv.value {
+                        if let Lit::Str(s) = &expr_lit.lit {
+                            return Ok(s.value());
                         }
                     }
                 }
@@ -172,11 +180,9 @@ fn get_field_name(field: &Field) -> syn::Result<String> {
 fn is_field_optional(field: &Field) -> syn::Result<bool> {
     for attr in &field.attrs {
         if attr.path().is_ident("tool") {
-            if let Ok(meta) = attr.parse_args::<Meta>() {
-                if let Meta::Path(path) = meta {
-                    if path.is_ident("optional") {
-                        return Ok(true);
-                    }
+            if let Ok(Meta::Path(path)) = attr.parse_args::<Meta>() {
+                if path.is_ident("optional") {
+                    return Ok(true);
                 }
             }
         }
@@ -218,8 +224,8 @@ fn type_to_schema(ty: &Type) -> syn::Result<TokenStream2> {
 
                 match ident_str.as_str() {
                     "String" | "str" => quote! { serde_json::json!({"type": "string"}) },
-                    "i8" | "i16" | "i32" | "i64" | "isize" |
-                    "u8" | "u16" | "u32" | "u64" | "usize" => {
+                    "i8" | "i16" | "i32" | "i64" | "isize" | "u8" | "u16" | "u32" | "u64"
+                    | "usize" => {
                         quote! { serde_json::json!({"type": "integer"}) }
                     }
                     "f32" | "f64" => quote! { serde_json::json!({"type": "number"}) },
