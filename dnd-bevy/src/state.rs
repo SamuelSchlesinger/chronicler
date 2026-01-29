@@ -16,6 +16,7 @@ use tokio::sync::mpsc;
 
 /// Game phase state machine.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, States)]
+#[allow(dead_code)]
 pub enum GamePhase {
     /// Main menu / title screen
     #[default]
@@ -30,6 +31,7 @@ pub enum GamePhase {
 
 /// Request sent from the UI to the AI worker.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum WorkerRequest {
     /// Process a player action.
     PlayerAction(String),
@@ -45,6 +47,7 @@ pub enum WorkerRequest {
 
 /// Response sent from the AI worker to the UI.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum WorkerResponse {
     /// A chunk of streaming text as it arrives.
     StreamChunk(String),
@@ -75,6 +78,7 @@ pub enum WorkerResponse {
 
 /// World state snapshot for UI rendering.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct WorldUpdate {
     /// Player hit points.
     pub player_hp: HitPoints,
@@ -187,7 +191,7 @@ impl WorldUpdate {
             skill_proficiencies: character
                 .skill_proficiencies
                 .iter()
-                .map(|(skill, level)| (*skill, format!("{:?}", level)))
+                .map(|(skill, level)| (*skill, format!("{level:?}")))
                 .collect(),
             proficiency_bonus: character.proficiency_bonus(),
             quests: world.quests.clone(),
@@ -197,6 +201,7 @@ impl WorldUpdate {
 
 /// A narrative entry with styling.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct NarrativeEntry {
     pub text: String,
     pub entry_type: NarrativeType,
@@ -223,6 +228,7 @@ pub struct PendingSession {
 
 /// Main application state resource.
 #[derive(Resource)]
+#[allow(dead_code)]
 pub struct AppState {
     /// Current world state snapshot.
     pub world: WorldUpdate,
@@ -353,11 +359,10 @@ impl AppState {
     /// Add a command to input history.
     pub fn add_to_history(&mut self, command: String) {
         // Don't add empty or duplicate consecutive commands
-        if !command.trim().is_empty() {
-            if self.input_history.last() != Some(&command) {
+        if !command.trim().is_empty()
+            && self.input_history.last() != Some(&command) {
                 self.input_history.push(command);
             }
-        }
         // Keep history bounded
         if self.input_history.len() > 100 {
             self.input_history.remove(0);
@@ -464,10 +469,10 @@ pub fn handle_worker_responses(
                 app_state.is_saving = false;
                 match result {
                     Ok(path) => {
-                        app_state.set_status(format!("Saved to {:?}", path), time.elapsed_secs_f64());
+                        app_state.set_status(format!("Saved to {path:?}"), time.elapsed_secs_f64());
                     }
                     Err(e) => {
-                        app_state.error_message = Some(format!("Save failed: {}", e));
+                        app_state.error_message = Some(format!("Save failed: {e}"));
                     }
                 }
             }
@@ -479,7 +484,7 @@ pub fn handle_worker_responses(
                         app_state.set_status("Game loaded", time.elapsed_secs_f64());
                     }
                     Err(e) => {
-                        app_state.error_message = Some(format!("Load failed: {}", e));
+                        app_state.error_message = Some(format!("Load failed: {e}"));
                     }
                 }
             }
@@ -510,11 +515,14 @@ pub fn check_pending_session(
             app_state.world = initial_world;
             app_state.set_status_persistent("Adventure begins!");
 
+            // Send initial action to get the DM's opening narration
+            app_state.send_action("I begin my adventure. Set the scene and describe where I am.".to_string());
+
             // Remove the pending resource
             commands.remove_resource::<PendingSession>();
         }
         Ok(Err(e)) => {
-            app_state.error_message = Some(format!("Failed to create session: {}", e));
+            app_state.error_message = Some(format!("Failed to create session: {e}"));
             commands.remove_resource::<PendingSession>();
         }
         Err(std::sync::mpsc::TryRecvError::Empty) => {

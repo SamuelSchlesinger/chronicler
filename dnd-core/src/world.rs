@@ -998,7 +998,7 @@ impl ConsumableItem {
 
     pub fn spell_scroll(spell_name: impl Into<String>, level: u8, value_gp: f32) -> Self {
         let spell_name_str: String = spell_name.into();
-        let name = format!("Scroll of {}", spell_name_str);
+        let name = format!("Scroll of {spell_name_str}");
         Self {
             base: Item {
                 name,
@@ -2197,8 +2197,10 @@ mod tests {
 
     #[test]
     fn test_inventory_gold() {
-        let mut inventory = Inventory::default();
-        inventory.gold = 100.0;
+        let mut inventory = Inventory {
+            gold: 100.0,
+            ..Default::default()
+        };
 
         assert!(inventory.adjust_gold(50.0).is_ok());
         assert_eq!(inventory.gold, 150.0);

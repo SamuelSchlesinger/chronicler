@@ -78,7 +78,7 @@ fn main() {
 /// Initial setup system.
 fn setup(mut commands: Commands) {
     // Spawn 2D camera for animations
-    commands.spawn(Camera2d::default());
+    commands.spawn(Camera2d);
 }
 
 /// Setup character creation when entering that state.

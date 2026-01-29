@@ -717,9 +717,9 @@ impl RulesEngine {
                     let flat: i32 = damage_dice.parse().unwrap_or(1);
                     format!("{}", flat * 2)
                 };
-                format!("{}+{}", doubled_dice, ability_mod)
+                format!("{doubled_dice}+{ability_mod}")
             } else {
-                format!("{}+{}", damage_dice, ability_mod)
+                format!("{damage_dice}+{ability_mod}")
             };
             let damage_roll = dice::roll(&damage_expr).unwrap_or_else(|_| dice::roll("1d4").unwrap());
             resolution = resolution.with_effect(Effect::DiceRolled {
@@ -844,8 +844,8 @@ impl RulesEngine {
         let character = &world.player_character;
 
         // Unconscious characters automatically fail Strength and Dexterity checks
-        if character.has_condition(Condition::Unconscious) {
-            if matches!(ability, Ability::Strength | Ability::Dexterity) {
+        if character.has_condition(Condition::Unconscious)
+            && matches!(ability, Ability::Strength | Ability::Dexterity) {
                 return Resolution::new(format!(
                     "{} is unconscious and automatically fails the {} check!",
                     character.name,
@@ -857,7 +857,6 @@ impl RulesEngine {
                     dc,
                 });
             }
-        }
 
         let modifier = character.ability_scores.modifier(ability);
 
@@ -908,8 +907,8 @@ impl RulesEngine {
         let character = &world.player_character;
 
         // Unconscious characters automatically fail Strength and Dexterity saving throws
-        if character.has_condition(Condition::Unconscious) {
-            if matches!(ability, Ability::Strength | Ability::Dexterity) {
+        if character.has_condition(Condition::Unconscious)
+            && matches!(ability, Ability::Strength | Ability::Dexterity) {
                 return Resolution::new(format!(
                     "{} is unconscious and automatically fails the {} saving throw!",
                     character.name,
@@ -921,7 +920,6 @@ impl RulesEngine {
                     dc,
                 });
             }
-        }
 
         let modifier = character.saving_throw_modifier(ability);
 
@@ -980,7 +978,7 @@ impl RulesEngine {
                 ))
                 .with_effect(Effect::CharacterDied {
                     target_id,
-                    cause: format!("Massive damage while unconscious from {}", source),
+                    cause: format!("Massive damage while unconscious from {source}"),
                 });
             }
 
@@ -1069,7 +1067,7 @@ impl RulesEngine {
         if instant_death {
             resolution = resolution.with_effect(Effect::CharacterDied {
                 target_id,
-                cause: format!("Massive damage from {}", source),
+                cause: format!("Massive damage from {source}"),
             });
         }
 
@@ -1512,8 +1510,7 @@ impl RulesEngine {
                 if let Some(db_weapon) = crate::items::get_weapon(item_name) {
                     if db_weapon.is_two_handed() && character.equipment.shield.is_some() {
                         return Resolution::new(format!(
-                            "Cannot equip {} - it requires two hands but a shield is equipped. Unequip the shield first.",
-                            item_name
+                            "Cannot equip {item_name} - it requires two hands but a shield is equipped. Unequip the shield first."
                         ));
                     }
                 }
@@ -1564,8 +1561,7 @@ impl RulesEngine {
             "off_hand" => character.equipment.off_hand.as_ref().map(|i| i.name.clone()),
             _ => {
                 return Resolution::new(format!(
-                    "Unknown equipment slot: {}. Valid slots: armor, shield, main_hand, off_hand",
-                    slot
+                    "Unknown equipment slot: {slot}. Valid slots: armor, shield, main_hand, off_hand"
                 ));
             }
         };
@@ -1577,7 +1573,7 @@ impl RulesEngine {
                     slot: slot.to_string(),
                 })
         } else {
-            Resolution::new(format!("Nothing equipped in {} slot", slot))
+            Resolution::new(format!("Nothing equipped in {slot} slot"))
         }
     }
 
@@ -1614,7 +1610,7 @@ impl RulesEngine {
                     };
 
                     let heal_expr = if bonus != 0 {
-                        format!("{}+{}", dice_expr, bonus)
+                        format!("{dice_expr}+{bonus}")
                     } else {
                         dice_expr
                     };
@@ -1658,8 +1654,7 @@ impl RulesEngine {
                     })
                 }
                 _ => Resolution::new(format!(
-                    "{} is not a consumable item",
-                    item_name
+                    "{item_name} is not a consumable item"
                 )),
             }
         } else {
@@ -1855,7 +1850,7 @@ impl RulesEngine {
         };
 
         // Roll the save
-        let roll = dice::roll(&format!("1d20+{}", save_mod)).unwrap();
+        let roll = dice::roll(&format!("1d20+{save_mod}")).unwrap();
         let roll_total = roll.total;
 
         if roll_total >= dc {
@@ -1894,8 +1889,7 @@ impl RulesEngine {
         let previous_location = world.current_location.name.clone();
 
         Resolution::new(format!(
-            "You travel from {} to {}.",
-            previous_location, new_location
+            "You travel from {previous_location} to {new_location}."
         ))
         .with_effect(Effect::LocationChanged {
             previous_location,

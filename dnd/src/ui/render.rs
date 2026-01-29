@@ -460,9 +460,7 @@ fn render_inventory_overlay(frame: &mut Frame, app: &App, area: Rect) {
 
     let weapon_text = app
         .world
-        .equipped_weapon
-        .as_ref()
-        .map(|w| w.as_str())
+        .equipped_weapon.as_deref()
         .unwrap_or("(none)");
     lines.push(Line::from(vec![
         Span::styled("  Weapon: ", Style::default().add_modifier(Modifier::DIM)),
@@ -471,9 +469,7 @@ fn render_inventory_overlay(frame: &mut Frame, app: &App, area: Rect) {
 
     let armor_text = app
         .world
-        .equipped_armor
-        .as_ref()
-        .map(|a| a.as_str())
+        .equipped_armor.as_deref()
         .unwrap_or("(none)");
     lines.push(Line::from(vec![
         Span::styled("  Armor: ", Style::default().add_modifier(Modifier::DIM)),
@@ -603,24 +599,24 @@ fn render_character_sheet_overlay(frame: &mut Frame, app: &App, area: Rect) {
             let score = app.world.ability_scores.get(*ability);
             let modifier = app.world.ability_scores.modifier(*ability);
             let mod_str = if modifier >= 0 {
-                format!("+{}", modifier)
+                format!("+{modifier}")
             } else {
-                format!("{}", modifier)
+                format!("{modifier}")
             };
 
             if i > 0 {
                 spans.push(Span::raw("  "));
             }
             spans.push(Span::styled(
-                format!("{}: ", abbrev),
+                format!("{abbrev}: "),
                 Style::default().add_modifier(Modifier::DIM),
             ));
             spans.push(Span::styled(
-                format!("{:2}", score),
+                format!("{score:2}"),
                 Style::default().add_modifier(Modifier::BOLD),
             ));
             spans.push(Span::styled(
-                format!(" ({})", mod_str),
+                format!(" ({mod_str})"),
                 Style::default().fg(if modifier >= 0 {
                     Color::Green
                 } else {
@@ -771,12 +767,12 @@ fn render_quest_log_overlay(frame: &mut Frame, app: &App, area: Rect) {
             // Show description if not too long
             let desc: String = quest.description.chars().take(50).collect();
             let desc = if quest.description.chars().count() > 50 {
-                format!("{}...", desc)
+                format!("{desc}...")
             } else {
                 desc
             };
             lines.push(Line::from(Span::styled(
-                format!("    {}", desc),
+                format!("    {desc}"),
                 Style::default().add_modifier(Modifier::DIM),
             )));
 
@@ -1048,15 +1044,11 @@ impl Widget for SimplifiedCharacterWidget<'_> {
         // Equipment and gold
         let weapon_text = self
             .world
-            .equipped_weapon
-            .as_ref()
-            .map(|w| w.as_str())
+            .equipped_weapon.as_deref()
             .unwrap_or("Unarmed");
         let armor_text = self
             .world
-            .equipped_armor
-            .as_ref()
-            .map(|a| a.as_str())
+            .equipped_armor.as_deref()
             .unwrap_or("Unarmored");
 
         let equipment_lines = vec![

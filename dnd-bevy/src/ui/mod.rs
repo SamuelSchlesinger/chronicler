@@ -7,7 +7,7 @@ mod panels;
 use bevy::prelude::*;
 use bevy_egui::{egui, EguiContexts};
 
-use crate::character_creation::{CharacterCreation, ReadyToStart};
+use crate::character_creation::CharacterCreation;
 use crate::state::{ActiveOverlay, AppState, GamePhase};
 
 /// Main UI system - renders all egui panels.
@@ -30,10 +30,7 @@ pub fn main_ui_system(
             panels::render_main_menu(ctx, &mut next_phase, &mut app_state);
 
             // Render overlays (Settings can be accessed from main menu)
-            match app_state.overlay {
-                ActiveOverlay::Settings => overlays::render_settings(ctx, &mut app_state),
-                _ => {}
-            }
+            if app_state.overlay == ActiveOverlay::Settings { overlays::render_settings(ctx, &mut app_state) }
 
             // Render error popup if present
             if app_state.error_message.is_some() {
@@ -154,12 +151,11 @@ pub fn handle_keyboard_input(
     let ctx = contexts.ctx_mut();
 
     // Close overlays with Escape (works in any phase)
-    if keys.just_pressed(KeyCode::Escape) {
-        if app_state.overlay != ActiveOverlay::None {
+    if keys.just_pressed(KeyCode::Escape)
+        && app_state.overlay != ActiveOverlay::None {
             app_state.overlay = ActiveOverlay::None;
             return;
         }
-    }
 
     // Only handle other shortcuts during gameplay
     if *game_phase.get() != GamePhase::Playing {
@@ -170,16 +166,15 @@ pub fn handle_keyboard_input(
     let ctrl_pressed = keys.pressed(KeyCode::ControlLeft) || keys.pressed(KeyCode::ControlRight)
         || keys.pressed(KeyCode::SuperLeft) || keys.pressed(KeyCode::SuperRight); // Cmd on Mac
 
-    if ctrl_pressed && keys.just_pressed(KeyCode::KeyS) {
-        if !app_state.is_saving && !app_state.is_processing && app_state.has_session() {
+    if ctrl_pressed && keys.just_pressed(KeyCode::KeyS)
+        && !app_state.is_saving && !app_state.is_processing && app_state.has_session() {
             if let Some(tx) = &app_state.request_tx {
-                let path = dnd_core::persist::manual_save_path("saves", &app_state.world.campaign_name);
+                let path = dnd_core::persist::auto_save_path("saves", &app_state.world.campaign_name);
                 let _ = tx.try_send(crate::state::WorkerRequest::Save(path));
                 app_state.is_saving = true;
                 app_state.set_status_persistent("Saving...");
             }
         }
-    }
 
     // Don't handle other shortcuts if egui wants keyboard input (user is typing)
     if ctx.wants_keyboard_input() {
@@ -203,6 +198,3 @@ pub fn handle_keyboard_input(
     }
 }
 
-pub use input::render_input_panel;
-pub use overlays::{render_character_sheet, render_help, render_inventory, render_quest_log, render_settings};
-pub use panels::{render_character_panel, render_combat_panel, render_narrative_panel, render_top_bar};

@@ -2,70 +2,68 @@
 
 ## What Was Done This Session
 
-### 1. Added Save/Load Buttons to Top Bar
-- Added Save, Load, and Settings buttons to the top bar in `panels.rs`
-- Save button creates a timestamped save file in `saves/` directory
-- Load button loads `saves/autosave.json`
-- Buttons show tooltips on hover
-- Buttons are disabled during processing or when no session is active
+### 1. Fixed Unicode/Font Rendering Issues
+Replaced Unicode characters that showed as boxes (missing glyphs) with ASCII equivalents:
+- `↑↓` → `Up/Down` for history navigation hints
+- `⚙📂💾` → `[S][L][W]` for toolbar buttons
+- `◀▶` → `<>` for collapse/expand buttons
+- `●○` → `[X][ ]` for filled/empty indicators
+- `☑☐✓✗` → `[X][ ][Done][Failed]` for checkboxes and markers
+- Removed emoji from settings section headers
+- `←→` → `< Back` / `Next >` for navigation
 
-### 2. Added Status Tracking and Auto-Clear
-- Added `is_saving`, `is_loading`, and `status_set_time` fields to `AppState`
-- Created `clear_old_status` system that clears status messages after 3 seconds
-- Status messages during save/load show a spinner
-- Status messages are displayed in a semi-transparent gold frame for better visibility
+### 2. Added Initial DM Narration
+When a new game starts, the system now automatically sends a prompt to the DM asking it to set the scene. Previously the player saw an empty narrative panel.
+- Modified `check_pending_session` in `state.rs` to send initial action after session creation
 
-### 3. Enhanced Visual Styling
-- Improved button hover effects with gold tint and border
-- Added gold stroke to hovered buttons
-- Added slight expansion effect on hover
-- Brighter pressed/active state
+### 3. Fixed Save/Load System
+- Save and Load now use consistent autosave paths based on campaign name (e.g., `saves/The_Dragon_s_Lair_autosave.json`)
+- Load button is disabled when no autosave exists, with helpful tooltip
+- Both [W] button and Ctrl+S save to the autosave location
+- Fixed "no directory found" error when clicking Load
 
-### 4. Implemented Settings Overlay
-- Replaced placeholder with actual content
-- Display section (character panel expanded/collapsed toggle)
-- Audio section (placeholder)
-- Gameplay section (placeholder)
-- Save Files section with "Open saves folder" button (cross-platform)
-- About section with version info
-
-### 5. Input History Navigation
-- Added command history (up to 100 commands)
-- Press Up/Down arrows to cycle through previous commands
-- History persists during session
-- Hint text updated to show history shortcut
-
-### 6. Keyboard Shortcuts
-- Added Ctrl+S / Cmd+S for quick save (works even while typing)
-- Updated help overlay to document all shortcuts
-
-### 7. Infrastructure Updates
-- `saves/` directory is created automatically on startup
-- Registered `clear_old_status` system in main.rs
+### 4. Cleaned Up All Clippy Warnings
+- Removed unused imports across dnd-bevy crate
+- Added `#[allow(dead_code)]` for intentionally unused fields reserved for future features
+- Fixed collapsible `if` statements
+- Inlined format string variables
+- Fixed missing `Effect::LocationChanged` match arm in TUI `dnd` crate
+- Fixed `Inventory` test initialization pattern in dnd-core
+- Workspace now builds with **zero warnings**
 
 ## Files Modified
 
 | File | Changes |
 |------|---------|
-| `dnd-bevy/src/state.rs` | Added save/load tracking, status timing, input history fields and methods |
-| `dnd-bevy/src/ui/panels.rs` | Added Save/Load/Settings buttons to top bar |
-| `dnd-bevy/src/ui/mod.rs` | Enhanced hover effects, added Ctrl+S shortcut |
-| `dnd-bevy/src/ui/overlays.rs` | Full settings content, updated help shortcuts |
-| `dnd-bevy/src/ui/input.rs` | Added history navigation with Up/Down arrows |
-| `dnd-bevy/src/main.rs` | Create saves/ directory, register clear_old_status |
-| `dnd-bevy/src/effects.rs` | Updated set_status calls with time parameter |
+| `dnd-bevy/src/ui/input.rs` | ASCII history hint |
+| `dnd-bevy/src/ui/panels.rs` | ASCII buttons, fixed save/load paths |
+| `dnd-bevy/src/ui/overlays.rs` | ASCII markers, removed emoji |
+| `dnd-bevy/src/ui/mod.rs` | Fixed Ctrl+S to use autosave path, removed unused imports |
+| `dnd-bevy/src/character_creation.rs` | ASCII navigation, fixed clippy warnings |
+| `dnd-bevy/src/state.rs` | Added initial DM narration, dead_code allows |
+| `dnd-bevy/src/animations/*.rs` | Added dead_code allows for future-use fields |
+| `dnd-bevy/src/effects.rs` | Auto-fixed format strings |
+| `dnd/src/effects.rs` | Added LocationChanged handler |
+| `dnd/src/ai_worker.rs` | Added dead_code allows |
+| `dnd/src/ui/widgets/character_panel.rs` | Added dead_code allow |
+| `dnd-core/src/world.rs` | Fixed Inventory test initialization |
 
 ## Current State
 
-- Build succeeds with only pre-existing unused code warnings
-- All UX enhancements are functional
-- Quick action buttons work (already existed)
-- Input history works with Up/Down arrows
+- **Build:** Clean, zero warnings across entire workspace
+- **DM Narration:** Game starts with scene-setting from the AI DM
+- **Save/Load:** Working with campaign-specific autosave files
+- **UI:** All text renders correctly (no missing glyph boxes)
+
+## Known Issues
+
+None currently identified.
 
 ## Suggested Next Steps
 
-1. Add a file picker for Load Game (currently hardcoded to autosave.json)
-2. Add autosave functionality (save on certain events)
-3. Integrate dice rolling animations when dice effects occur
-4. Add sound effects
-5. Add font size scaling in settings
+1. **Add a file picker for Load Game** - Allow loading from multiple save files
+2. **Add autosave on key events** - Auto-save after combat, level up, etc.
+3. **Integrate dice rolling animations** - Visual feedback when dice are rolled
+4. **Add sound effects** - Audio feedback for actions
+5. **Add font size scaling** - Accessibility option in settings
+6. **Custom font loading** - Add a font with better Unicode coverage if special characters are desired

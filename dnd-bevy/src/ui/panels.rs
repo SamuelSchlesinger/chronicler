@@ -118,7 +118,7 @@ pub fn render_top_bar(ctx: &egui::Context, app_state: &mut AppState) {
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 // Settings button
                 if ui
-                    .add(egui::Button::new("⚙").min_size(egui::vec2(28.0, 22.0)))
+                    .add(egui::Button::new("[S]").min_size(egui::vec2(28.0, 22.0)))
                     .on_hover_text("Settings")
                     .clicked()
                 {
@@ -129,14 +129,19 @@ pub fn render_top_bar(ctx: &egui::Context, app_state: &mut AppState) {
 
                 // Load button
                 let load_enabled = !app_state.is_loading && !app_state.is_processing && app_state.has_session();
+                let autosave_path = dnd_core::persist::auto_save_path("saves", &app_state.world.campaign_name);
+                let autosave_exists = autosave_path.exists();
                 if ui
-                    .add_enabled(load_enabled, egui::Button::new("📂").min_size(egui::vec2(28.0, 22.0)))
-                    .on_hover_text("Load Game (saves/autosave.json)")
+                    .add_enabled(load_enabled && autosave_exists, egui::Button::new("[L]").min_size(egui::vec2(28.0, 22.0)))
+                    .on_hover_text(if autosave_exists {
+                        format!("Load Game ({})", autosave_path.display())
+                    } else {
+                        "No autosave found - save first with [W]".to_string()
+                    })
                     .clicked()
                 {
                     if let Some(tx) = &app_state.request_tx {
-                        let path = std::path::PathBuf::from("saves/autosave.json");
-                        let _ = tx.try_send(WorkerRequest::Load(path));
+                        let _ = tx.try_send(WorkerRequest::Load(autosave_path));
                         app_state.is_loading = true;
                         app_state.set_status_persistent("Loading...");
                     }
@@ -144,15 +149,15 @@ pub fn render_top_bar(ctx: &egui::Context, app_state: &mut AppState) {
 
                 ui.add_space(4.0);
 
-                // Save button
+                // Save button (saves to autosave location)
                 let save_enabled = !app_state.is_saving && !app_state.is_processing && app_state.has_session();
                 if ui
-                    .add_enabled(save_enabled, egui::Button::new("💾").min_size(egui::vec2(28.0, 22.0)))
+                    .add_enabled(save_enabled, egui::Button::new("[W]").min_size(egui::vec2(28.0, 22.0)))
                     .on_hover_text("Save Game")
                     .clicked()
                 {
                     if let Some(tx) = &app_state.request_tx {
-                        let path = dnd_core::persist::manual_save_path("saves", &app_state.world.campaign_name);
+                        let path = dnd_core::persist::auto_save_path("saves", &app_state.world.campaign_name);
                         let _ = tx.try_send(WorkerRequest::Save(path));
                         app_state.is_saving = true;
                         app_state.set_status_persistent("Saving...");
@@ -261,7 +266,7 @@ pub fn render_character_panel(ctx: &egui::Context, app_state: &mut AppState) {
             // Header with collapse button
             ui.horizontal(|ui| {
                 // Collapse/expand button
-                let button_text = if app_state.character_panel_expanded { "◀" } else { "▶" };
+                let button_text = if app_state.character_panel_expanded { "<" } else { ">" };
                 if ui.small_button(button_text).clicked() {
                     app_state.character_panel_expanded = !app_state.character_panel_expanded;
                 }
@@ -284,7 +289,7 @@ pub fn render_character_panel(ctx: &egui::Context, app_state: &mut AppState) {
                 egui::Color32::from_rgb(178, 34, 34)
             };
 
-            let progress_bar = egui::ProgressBar::new(hp_ratio as f32)
+            let progress_bar = egui::ProgressBar::new(hp_ratio)
                 .text(format!("{}/{}", hp.current.max(0), hp.maximum))
                 .fill(hp_color);
             ui.add(progress_bar);
@@ -312,13 +317,13 @@ pub fn render_character_panel(ctx: &egui::Context, app_state: &mut AppState) {
                     for i in 0..3 {
                         let filled = i < saves.successes;
                         let color = if filled { egui::Color32::from_rgb(34, 139, 34) } else { egui::Color32::DARK_GRAY };
-                        ui.colored_label(color, if filled { "●" } else { "○" });
+                        ui.colored_label(color, if filled { "[X]" } else { "[ ]" });
                     }
                     ui.label("/");
                     for i in 0..3 {
                         let filled = i < saves.failures;
                         let color = if filled { egui::Color32::RED } else { egui::Color32::DARK_GRAY };
-                        ui.colored_label(color, if filled { "●" } else { "○" });
+                        ui.colored_label(color, if filled { "[X]" } else { "[ ]" });
                     }
                 });
             }
@@ -332,7 +337,7 @@ pub fn render_character_panel(ctx: &egui::Context, app_state: &mut AppState) {
                 ui.separator();
                 ui.label("Init:");
                 let init = app_state.world.player_initiative;
-                ui.label(egui::RichText::new(if init >= 0 { format!("+{}", init) } else { format!("{}", init) }).strong());
+                ui.label(egui::RichText::new(if init >= 0 { format!("+{init}") } else { format!("{init}") }).strong());
             });
 
             ui.horizontal(|ui| {
@@ -345,7 +350,7 @@ pub fn render_character_panel(ctx: &egui::Context, app_state: &mut AppState) {
                 ui.separator();
                 ui.label(egui::RichText::new("Conditions").color(egui::Color32::YELLOW).strong());
                 for condition in &app_state.world.conditions {
-                    ui.label(format!("  {}", condition));
+                    ui.label(format!("  {condition}"));
                 }
             }
 
@@ -354,12 +359,12 @@ pub fn render_character_panel(ctx: &egui::Context, app_state: &mut AppState) {
             // Equipment
             ui.label(egui::RichText::new("Equipment").strong());
             if let Some(ref weapon) = app_state.world.equipped_weapon {
-                ui.label(format!("  {}", weapon));
+                ui.label(format!("  {weapon}"));
             } else {
                 ui.label("  (no weapon)");
             }
             if let Some(ref armor) = app_state.world.equipped_armor {
-                ui.label(format!("  {}", armor));
+                ui.label(format!("  {armor}"));
             }
 
             ui.separator();
@@ -391,7 +396,7 @@ pub fn render_character_panel(ctx: &egui::Context, app_state: &mut AppState) {
                             } else {
                                 egui::Color32::LIGHT_GRAY
                             };
-                            ui.label(egui::RichText::new(format!("• {}", name)).color(color).small());
+                            ui.label(egui::RichText::new(format!("• {name}")).color(color).small());
                         }
                     });
                 }

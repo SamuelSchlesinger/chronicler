@@ -29,12 +29,12 @@ pub fn render_inventory(ctx: &egui::Context, app_state: &AppState) {
             ui.heading("Equipped");
             ui.indent("equipped", |ui| {
                 if let Some(ref weapon) = app_state.world.equipped_weapon {
-                    ui.label(format!("Main Hand: {}", weapon));
+                    ui.label(format!("Main Hand: {weapon}"));
                 } else {
                     ui.label("Main Hand: (empty)");
                 }
                 if let Some(ref armor) = app_state.world.equipped_armor {
-                    ui.label(format!("Armor: {}", armor));
+                    ui.label(format!("Armor: {armor}"));
                 } else {
                     ui.label("Armor: (none)");
                 }
@@ -139,16 +139,16 @@ pub fn render_character_sheet(ctx: &egui::Context, app_state: &AppState) {
                     let score = app_state.world.ability_scores.get(ability);
                     let modifier = app_state.world.ability_scores.modifier(ability);
                     let mod_str = if modifier >= 0 {
-                        format!("+{}", modifier)
+                        format!("+{modifier}")
                     } else {
-                        format!("{}", modifier)
+                        format!("{modifier}")
                     };
 
                     columns[0].horizontal(|ui| {
                         ui.label(egui::RichText::new(abbr).strong());
-                        ui.label(format!("{:2}", score));
+                        ui.label(format!("{score:2}"));
                         ui.label(
-                            egui::RichText::new(format!("({})", mod_str))
+                            egui::RichText::new(format!("({mod_str})"))
                                 .color(egui::Color32::from_rgb(100, 180, 255)),
                         );
                     });
@@ -169,9 +169,9 @@ pub fn render_character_sheet(ctx: &egui::Context, app_state: &AppState) {
                     let init = app_state.world.player_initiative;
                     ui.label(
                         egui::RichText::new(if init >= 0 {
-                            format!("+{}", init)
+                            format!("+{init}")
                         } else {
-                            format!("{}", init)
+                            format!("{init}")
                         })
                         .strong(),
                     );
@@ -200,7 +200,7 @@ pub fn render_character_sheet(ctx: &egui::Context, app_state: &AppState) {
                 for (skill, proficiency) in skills {
                     columns[1].horizontal(|ui| {
                         let is_proficient = proficiency != "NotProficient";
-                        let marker = if is_proficient { "●" } else { "○" };
+                        let marker = if is_proficient { "[*]" } else { "[ ]" };
                         let color = if is_proficient {
                             egui::Color32::GREEN
                         } else {
@@ -221,7 +221,7 @@ pub fn render_character_sheet(ctx: &egui::Context, app_state: &AppState) {
                 ui.horizontal_wrapped(|ui| {
                     for condition in &app_state.world.conditions {
                         ui.label(
-                            egui::RichText::new(format!("{}", condition))
+                            egui::RichText::new(format!("{condition}"))
                                 .color(egui::Color32::YELLOW)
                                 .background_color(egui::Color32::from_rgb(60, 50, 40)),
                         );
@@ -282,7 +282,7 @@ pub fn render_quest_log(ctx: &egui::Context, app_state: &AppState) {
                             if !quest.objectives.is_empty() {
                                 ui.add_space(4.0);
                                 for obj in &quest.objectives {
-                                    let marker = if obj.completed { "☑" } else { "☐" };
+                                    let marker = if obj.completed { "[X]" } else { "[ ]" };
                                     let color = if obj.completed {
                                         egui::Color32::GREEN
                                     } else {
@@ -317,7 +317,7 @@ pub fn render_quest_log(ctx: &egui::Context, app_state: &AppState) {
 
                     for quest in completed_quests {
                         ui.label(
-                            egui::RichText::new(format!("✓ {}", quest.name))
+                            egui::RichText::new(format!("[Done] {}", quest.name))
                                 .color(egui::Color32::from_rgb(100, 180, 100)),
                         );
                     }
@@ -341,7 +341,7 @@ pub fn render_quest_log(ctx: &egui::Context, app_state: &AppState) {
 
                     for quest in failed_quests {
                         ui.label(
-                            egui::RichText::new(format!("✗ {}", quest.name))
+                            egui::RichText::new(format!("[Failed] {}", quest.name))
                                 .color(egui::Color32::from_rgb(180, 100, 100)),
                         );
                     }
@@ -390,7 +390,7 @@ pub fn render_help(ctx: &egui::Context) {
                 ui.label("- Quick Save");
             });
             ui.horizontal(|ui| {
-                ui.label(egui::RichText::new("↑ / ↓").strong());
+                ui.label(egui::RichText::new("Up / Down").strong());
                 ui.label("- Browse command history");
             });
             ui.horizontal(|ui| {
@@ -447,7 +447,7 @@ pub fn render_settings(ctx: &egui::Context, app_state: &mut AppState) {
 
             // Display section
             ui.collapsing(
-                egui::RichText::new("🖥 Display").strong(),
+                egui::RichText::new("Display").strong(),
                 |ui| {
                     ui.horizontal(|ui| {
                         ui.label("Character panel:");
@@ -473,7 +473,7 @@ pub fn render_settings(ctx: &egui::Context, app_state: &mut AppState) {
 
             // Audio section (placeholder)
             ui.collapsing(
-                egui::RichText::new("🔊 Audio").strong(),
+                egui::RichText::new("Audio").strong(),
                 |ui| {
                     ui.label(
                         egui::RichText::new("Audio settings coming soon")
@@ -488,7 +488,7 @@ pub fn render_settings(ctx: &egui::Context, app_state: &mut AppState) {
 
             // Gameplay section
             ui.collapsing(
-                egui::RichText::new("🎮 Gameplay").strong(),
+                egui::RichText::new("Gameplay").strong(),
                 |ui| {
                     ui.label(
                         egui::RichText::new("Gameplay options coming soon")
@@ -503,7 +503,7 @@ pub fn render_settings(ctx: &egui::Context, app_state: &mut AppState) {
 
             // Save files section
             ui.collapsing(
-                egui::RichText::new("💾 Save Files").strong(),
+                egui::RichText::new("Save Files").strong(),
                 |ui| {
                     ui.label("Save directory: saves/");
 
@@ -530,7 +530,7 @@ pub fn render_settings(ctx: &egui::Context, app_state: &mut AppState) {
 
             // About section
             ui.collapsing(
-                egui::RichText::new("ℹ About").strong(),
+                egui::RichText::new("About").strong(),
                 |ui| {
                     ui.label(
                         egui::RichText::new("D&D: AI Dungeon Master")

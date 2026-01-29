@@ -9,6 +9,7 @@ use super::AnimationLifetime;
 
 /// Component for floating damage number.
 #[derive(Component)]
+#[allow(dead_code)]
 pub struct DamageNumber {
     /// The amount to display (can be positive for healing, negative for damage).
     pub amount: i32,
@@ -97,6 +98,7 @@ fn ease_out_quad(t: f32) -> f32 {
     1.0 - (1.0 - t) * (1.0 - t)
 }
 
+#[allow(dead_code)]
 impl DamageNumber {
     /// Get the color for this damage number.
     pub fn color(&self) -> Color {

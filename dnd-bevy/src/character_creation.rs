@@ -8,10 +8,10 @@ use dnd_core::world::{
     Ability, AbilityScores, Background, Character, CharacterClass, ClassLevel, HitPoints,
     ProficiencyLevel, Race, RaceType, Skill, Speed,
 };
-use dnd_core::{AbilityMethod, CharacterBuilder, GameSession, SessionConfig};
+use dnd_core::{AbilityMethod, CharacterBuilder};
 use std::collections::HashSet;
 
-use crate::state::{AppState, GamePhase, PendingSession};
+use crate::state::{AppState, GamePhase};
 
 /// Point buy costs for each score value.
 fn point_buy_cost(score: u8) -> u8 {
@@ -42,6 +42,7 @@ pub enum CreationStep {
     Review,
 }
 
+#[allow(dead_code)]
 impl CreationStep {
     pub fn title(&self) -> &'static str {
         match self {
@@ -247,7 +248,7 @@ pub fn render_character_creation(
 
                 ui.label(egui::RichText::new(format!("{}", i + 1)).color(color));
                 if i < steps.len() - 1 {
-                    ui.label(egui::RichText::new("─").color(color));
+                    ui.label(egui::RichText::new("-").color(color));
                 }
             }
         });
@@ -285,12 +286,10 @@ pub fn render_character_creation(
         // Navigation buttons
         ui.separator();
         ui.horizontal(|ui| {
-            if creation.step != CreationStep::Name {
-                if ui.button("← Back").clicked() {
-                    if let Some(prev) = creation.step.prev() {
-                        creation.step = prev;
-                        creation.error_message = None;
-                    }
+            if creation.step != CreationStep::Name && ui.button("< Back").clicked() {
+                if let Some(prev) = creation.step.prev() {
+                    creation.step = prev;
+                    creation.error_message = None;
                 }
             }
 
@@ -313,14 +312,12 @@ fn render_name_step(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
             .desired_width(300.0),
     );
 
-    if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-        if !creation.name.trim().is_empty() {
-            creation.step = CreationStep::Race;
-        }
+    if response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter)) && !creation.name.trim().is_empty() {
+        creation.step = CreationStep::Race;
     }
 
     ui.add_space(10.0);
-    if !creation.name.trim().is_empty() && ui.button("Next →").clicked() {
+    if !creation.name.trim().is_empty() && ui.button("Next >").clicked() {
         creation.step = CreationStep::Race;
     }
 }
@@ -345,7 +342,7 @@ fn render_race_step(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
     });
 
     ui.add_space(10.0);
-    if creation.race.is_some() && ui.button("Next →").clicked() {
+    if creation.race.is_some() && ui.button("Next >").clicked() {
         creation.step = CreationStep::Class;
     }
 }
@@ -370,7 +367,7 @@ fn render_class_step(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
     });
 
     ui.add_space(10.0);
-    if creation.class.is_some() && ui.button("Next →").clicked() {
+    if creation.class.is_some() && ui.button("Next >").clicked() {
         creation.step = CreationStep::Background;
     }
 }
@@ -392,7 +389,7 @@ fn render_background_step(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
     });
 
     ui.add_space(10.0);
-    if creation.background.is_some() && ui.button("Next →").clicked() {
+    if creation.background.is_some() && ui.button("Next >").clicked() {
         creation.step = CreationStep::AbilityMethod;
     }
 }
@@ -431,7 +428,7 @@ fn render_ability_method_step(ui: &mut egui::Ui, creation: &mut CharacterCreatio
     }
 
     ui.add_space(10.0);
-    if ui.button("Next →").clicked() {
+    if ui.button("Next >").clicked() {
         creation.step = CreationStep::AbilityScores;
     }
 }
@@ -452,7 +449,7 @@ fn render_ability_scores_step(ui: &mut egui::Ui, creation: &mut CharacterCreatio
     };
 
     ui.add_space(10.0);
-    if complete && ui.button("Next →").clicked() {
+    if complete && ui.button("Next >").clicked() {
         // Set up skills for next step
         if let Some(class) = creation.class {
             let data = class.data();
@@ -479,7 +476,7 @@ fn render_standard_array(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
         ui.horizontal(|ui| {
             ui.label(format!("{}: ", ability.abbreviation()));
             if assigned {
-                ui.label(egui::RichText::new(format!("{}", current_value)).strong());
+                ui.label(egui::RichText::new(current_value.to_string()).strong());
             } else {
                 ui.label("___");
             }
@@ -492,7 +489,7 @@ fn render_standard_array(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
     ui.horizontal(|ui| {
         for (i, value) in standard_array.iter().enumerate() {
             let used = creation.ability_assignment[i].is_some();
-            if ui.add_enabled(!used, egui::Button::new(format!("{}", value))).clicked() {
+            if ui.add_enabled(!used, egui::Button::new(value.to_string())).clicked() {
                 // Find first unassigned ability
                 for ability in &abilities {
                     if !creation.ability_assignment.contains(&Some(*ability)) {
@@ -521,9 +518,9 @@ fn render_point_buy(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
         let score = creation.ability_scores.get(*ability);
         let modifier = creation.ability_scores.modifier(*ability);
         let mod_str = if modifier >= 0 {
-            format!("+{}", modifier)
+            format!("+{modifier}")
         } else {
-            format!("{}", modifier)
+            modifier.to_string()
         };
 
         ui.horizontal(|ui| {
@@ -537,7 +534,7 @@ fn render_point_buy(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
                 creation.point_buy_points += refund;
             }
 
-            ui.label(egui::RichText::new(format!("{:2}", score)).strong());
+            ui.label(egui::RichText::new(format!("{score:2}")).strong());
 
             let can_increase = score < 15 && {
                 let current_cost = point_buy_cost(score);
@@ -553,7 +550,7 @@ fn render_point_buy(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
                 creation.point_buy_points -= cost_diff;
             }
 
-            ui.label(format!("({})", mod_str));
+            ui.label(format!("({mod_str})"));
         });
     }
 
@@ -579,7 +576,7 @@ fn render_rolled(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
         ui.horizontal(|ui| {
             ui.label(format!("{}: ", ability.abbreviation()));
             if assigned {
-                ui.label(egui::RichText::new(format!("{}", current_value)).strong());
+                ui.label(egui::RichText::new(current_value.to_string()).strong());
             } else {
                 ui.label("___");
             }
@@ -592,7 +589,7 @@ fn render_rolled(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
     ui.horizontal(|ui| {
         for (i, value) in creation.rolled_scores.iter().enumerate() {
             let used = creation.ability_assignment[i].is_some();
-            if ui.add_enabled(!used, egui::Button::new(format!("{}", value))).clicked() {
+            if ui.add_enabled(!used, egui::Button::new(value.to_string())).clicked() {
                 // Find first unassigned ability
                 for ability in &abilities {
                     if !creation.ability_assignment.contains(&Some(*ability)) {
@@ -649,7 +646,7 @@ fn render_skills_step(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
     });
 
     ui.add_space(10.0);
-    if creation.selected_skills.len() == creation.required_skill_count && ui.button("Next →").clicked() {
+    if creation.selected_skills.len() == creation.required_skill_count && ui.button("Next >").clicked() {
         creation.step = CreationStep::Review;
     }
 }
@@ -678,7 +675,7 @@ fn render_review_step(
                 next_phase.set(GamePhase::Playing);
             }
             Err(e) => {
-                creation.error_message = Some(format!("Failed to create character: {}", e));
+                creation.error_message = Some(format!("Failed to create character: {e}"));
             }
         }
     }
@@ -694,7 +691,7 @@ fn render_preview(ui: &mut egui::Ui, creation: &CharacterCreation) {
         );
 
         // Race/Class
-        if let Some(ref class) = character.classes.first() {
+        if let Some(class) = character.classes.first() {
             ui.label(format!("Level {} {}", class.level, class.class.name()));
         }
         if let Some(race) = creation.race {
@@ -730,12 +727,12 @@ fn render_preview(ui: &mut egui::Ui, creation: &CharacterCreation) {
             let score = character.ability_scores.get(ability);
             let modifier = character.ability_scores.modifier(ability);
             let mod_str = if modifier >= 0 {
-                format!("+{}", modifier)
+                format!("+{modifier}")
             } else {
-                format!("{}", modifier)
+                format!("{modifier}")
             };
             ui.horizontal(|ui| {
-                ui.label(format!("{}: {:2} ({})", abbr, score, mod_str));
+                ui.label(format!("{abbr}: {score:2} ({mod_str})"));
             });
         }
 

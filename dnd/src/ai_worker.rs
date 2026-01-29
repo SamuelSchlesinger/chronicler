@@ -32,6 +32,7 @@ pub enum WorkerRequest {
 
 /// Response sent from the AI worker to the UI.
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum WorkerResponse {
     /// A chunk of streaming text as it arrives.
     StreamChunk(String),
@@ -63,6 +64,7 @@ pub enum WorkerResponse {
 /// World state snapshot for UI rendering.
 /// Contains the mutable fields needed by the UI.
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct WorldUpdate {
     /// Player hit points.
     pub player_hp: HitPoints,
@@ -146,7 +148,7 @@ impl WorldUpdate {
             skill_proficiencies: character
                 .skill_proficiencies
                 .iter()
-                .map(|(skill, level)| (*skill, format!("{:?}", level)))
+                .map(|(skill, level)| (*skill, format!("{level:?}")))
                 .collect(),
             proficiency_bonus: character.proficiency_bonus(),
             quests: world.quests.clone(),

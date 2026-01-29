@@ -58,8 +58,7 @@ pub fn process_effect(
             if *is_critical {
                 app_state.add_narrative(
                     format!(
-                        "CRITICAL HIT! {} rolls {} vs AC {} and strikes {}!",
-                        attacker_name, attack_roll, target_ac, target_name
+                        "CRITICAL HIT! {attacker_name} rolls {attack_roll} vs AC {target_ac} and strikes {target_name}!"
                     ),
                     NarrativeType::Combat,
                     time,
@@ -67,8 +66,7 @@ pub fn process_effect(
             } else {
                 app_state.add_narrative(
                     format!(
-                        "{} rolls {} vs AC {} and hits {}!",
-                        attacker_name, attack_roll, target_ac, target_name
+                        "{attacker_name} rolls {attack_roll} vs AC {target_ac} and hits {target_name}!"
                     ),
                     NarrativeType::Combat,
                     time,
@@ -85,8 +83,7 @@ pub fn process_effect(
             animations::spawn_combat_effect(commands, EffectType::Miss, Vec2::ZERO, 0.3);
             app_state.add_narrative(
                 format!(
-                    "{} rolls {} vs AC {} and misses {}!",
-                    attacker_name, attack_roll, target_ac, target_name
+                    "{attacker_name} rolls {attack_roll} vs AC {target_ac} and misses {target_name}!"
                 ),
                 NarrativeType::Combat,
                 time,
@@ -128,7 +125,7 @@ pub fn process_effect(
                 );
             } else if *amount > 0 {
                 app_state.add_narrative(
-                    format!("Heals {} HP! (HP: {})", amount, new_current),
+                    format!("Heals {amount} HP! (HP: {new_current})"),
                     NarrativeType::System,
                     time,
                 );
@@ -144,7 +141,7 @@ pub fn process_effect(
             condition, source, ..
         } => {
             app_state.add_narrative(
-                format!("Now {} from {}!", condition, source),
+                format!("Now {condition} from {source}!"),
                 NarrativeType::Combat,
                 time,
             );
@@ -152,7 +149,7 @@ pub fn process_effect(
 
         Effect::ConditionRemoved { condition, .. } => {
             app_state.add_narrative(
-                format!("No longer {}.", condition),
+                format!("No longer {condition}."),
                 NarrativeType::System,
                 time,
             );
@@ -173,7 +170,7 @@ pub fn process_effect(
             current_combatant,
         } => {
             app_state.add_narrative(
-                format!("Round {} - {}'s turn.", round, current_combatant),
+                format!("Round {round} - {current_combatant}'s turn."),
                 NarrativeType::Combat,
                 time,
             );
@@ -187,11 +184,11 @@ pub fn process_effect(
                 commands,
                 *total,
                 DiceType::D20,
-                format!("{}'s initiative", name),
+                format!("{name}'s initiative"),
                 Vec2::new(300.0, 400.0),
             );
             app_state.add_narrative(
-                format!("{} rolls {} for initiative (total: {})", name, roll, total),
+                format!("{name} rolls {roll} for initiative (total: {total})"),
                 NarrativeType::System,
                 time,
             );
@@ -201,7 +198,7 @@ pub fn process_effect(
             name, initiative, ..
         } => {
             app_state.add_narrative(
-                format!("{} enters combat with initiative {}.", name, initiative),
+                format!("{name} enters combat with initiative {initiative}."),
                 NarrativeType::Combat,
                 time,
             );
@@ -213,20 +210,20 @@ pub fn process_effect(
                 let mins = minutes % 60;
                 if mins > 0 {
                     app_state.add_narrative(
-                        format!("{} hours and {} minutes pass.", hours, mins),
+                        format!("{hours} hours and {mins} minutes pass."),
                         NarrativeType::System,
                         time,
                     );
                 } else {
                     app_state.add_narrative(
-                        format!("{} hours pass.", hours),
+                        format!("{hours} hours pass."),
                         NarrativeType::System,
                         time,
                     );
                 }
             } else {
                 app_state.add_narrative(
-                    format!("{} minutes pass.", minutes),
+                    format!("{minutes} minutes pass."),
                     NarrativeType::System,
                     time,
                 );
@@ -235,7 +232,7 @@ pub fn process_effect(
 
         Effect::ExperienceGained { amount, new_total } => {
             app_state.add_narrative(
-                format!("Gained {} XP! (Total: {} XP)", amount, new_total),
+                format!("Gained {amount} XP! (Total: {new_total} XP)"),
                 NarrativeType::System,
                 time,
             );
@@ -244,11 +241,11 @@ pub fn process_effect(
         Effect::LevelUp { new_level } => {
             animations::spawn_combat_effect(commands, EffectType::LevelUp, Vec2::ZERO, 1.0);
             app_state.add_narrative(
-                format!("LEVEL UP! You are now level {}!", new_level),
+                format!("LEVEL UP! You are now level {new_level}!"),
                 NarrativeType::System,
                 time,
             );
-            app_state.set_status(format!("Level up! Now level {}!", new_level), time);
+            app_state.set_status(format!("Level up! Now level {new_level}!"), time);
         }
 
         Effect::FeatureUsed {
@@ -256,7 +253,7 @@ pub fn process_effect(
             uses_remaining,
         } => {
             app_state.add_narrative(
-                format!("Used {}. ({} uses remaining)", feature_name, uses_remaining),
+                format!("Used {feature_name}. ({uses_remaining} uses remaining)"),
                 NarrativeType::System,
                 time,
             );
@@ -265,7 +262,7 @@ pub fn process_effect(
         Effect::SpellSlotUsed { level, remaining } => {
             animations::spawn_combat_effect(commands, EffectType::SpellCast, Vec2::ZERO, 0.5);
             app_state.add_narrative(
-                format!("Used a level {} spell slot. ({} remaining)", level, remaining),
+                format!("Used a level {level} spell slot. ({remaining} remaining)"),
                 NarrativeType::System,
                 time,
             );
@@ -278,7 +275,7 @@ pub fn process_effect(
             };
             animations::spawn_combat_effect(commands, EffectType::Heal, Vec2::ZERO, 0.5);
             app_state.add_narrative(
-                format!("Completed a {} rest.", rest_name),
+                format!("Completed a {rest_name} rest."),
                 NarrativeType::System,
                 time,
             );
@@ -290,7 +287,7 @@ pub fn process_effect(
             dc,
         } => {
             app_state.add_narrative(
-                format!("{} check succeeded! ({} vs DC {})", check_type, roll, dc),
+                format!("{check_type} check succeeded! ({roll} vs DC {dc})"),
                 NarrativeType::System,
                 time,
             );
@@ -302,7 +299,7 @@ pub fn process_effect(
             dc,
         } => {
             app_state.add_narrative(
-                format!("{} check failed. ({} vs DC {})", check_type, roll, dc),
+                format!("{check_type} check failed. ({roll} vs DC {dc})"),
                 NarrativeType::System,
                 time,
             );
@@ -318,12 +315,12 @@ pub fn process_effect(
             new_total,
         } => {
             let qty_str = if *quantity > 1 {
-                format!("{} x ", quantity)
+                format!("{quantity} x ")
             } else {
                 String::new()
             };
             app_state.add_narrative(
-                format!("Received {}{}! (now have {})", qty_str, item_name, new_total),
+                format!("Received {qty_str}{item_name}! (now have {new_total})"),
                 NarrativeType::System,
                 time,
             );
@@ -335,19 +332,19 @@ pub fn process_effect(
             remaining,
         } => {
             let qty_str = if *quantity > 1 {
-                format!("{} x ", quantity)
+                format!("{quantity} x ")
             } else {
                 String::new()
             };
             if *remaining > 0 {
                 app_state.add_narrative(
-                    format!("Lost {}{}. ({} remaining)", qty_str, item_name, remaining),
+                    format!("Lost {qty_str}{item_name}. ({remaining} remaining)"),
                     NarrativeType::System,
                     time,
                 );
             } else {
                 app_state.add_narrative(
-                    format!("Lost {}{}.", qty_str, item_name),
+                    format!("Lost {qty_str}{item_name}."),
                     NarrativeType::System,
                     time,
                 );
@@ -356,7 +353,7 @@ pub fn process_effect(
 
         Effect::ItemEquipped { item_name, slot } => {
             app_state.add_narrative(
-                format!("Equipped {} in {} slot.", item_name, slot),
+                format!("Equipped {item_name} in {slot} slot."),
                 NarrativeType::System,
                 time,
             );
@@ -364,7 +361,7 @@ pub fn process_effect(
 
         Effect::ItemUnequipped { item_name, slot } => {
             app_state.add_narrative(
-                format!("Unequipped {} from {} slot.", item_name, slot),
+                format!("Unequipped {item_name} from {slot} slot."),
                 NarrativeType::System,
                 time,
             );
@@ -372,7 +369,7 @@ pub fn process_effect(
 
         Effect::ItemUsed { item_name, result } => {
             app_state.add_narrative(
-                format!("Used {}. {}", item_name, result),
+                format!("Used {item_name}. {result}"),
                 NarrativeType::System,
                 time,
             );
@@ -399,7 +396,7 @@ pub fn process_effect(
 
         Effect::AcChanged { new_ac, source } => {
             app_state.add_narrative(
-                format!("AC changed to {} ({})", new_ac, source),
+                format!("AC changed to {new_ac} ({source})"),
                 NarrativeType::System,
                 time,
             );
@@ -413,8 +410,7 @@ pub fn process_effect(
             animations::spawn_combat_effect(commands, EffectType::DamageFlash, Vec2::ZERO, 0.8);
             app_state.add_narrative(
                 format!(
-                    "DEATH SAVE FAILURE from {}! ({}/3 failures)",
-                    source, total_failures
+                    "DEATH SAVE FAILURE from {source}! ({total_failures}/3 failures)"
                 ),
                 NarrativeType::Combat,
                 time,
@@ -423,7 +419,7 @@ pub fn process_effect(
                 animations::spawn_combat_effect(commands, EffectType::Death, Vec2::ZERO, 1.0);
                 app_state.set_status("You have died!", time);
             } else {
-                app_state.set_status(format!("Death saves: {}/3 failures", total_failures), time);
+                app_state.set_status(format!("Death saves: {total_failures}/3 failures"), time);
             }
         }
 
@@ -439,7 +435,7 @@ pub fn process_effect(
         Effect::CharacterDied { cause, .. } => {
             animations::spawn_combat_effect(commands, EffectType::Death, Vec2::ZERO, 1.0);
             app_state.add_narrative(
-                format!("YOU HAVE DIED! Cause: {}", cause),
+                format!("YOU HAVE DIED! Cause: {cause}"),
                 NarrativeType::Combat,
                 time,
             );
@@ -460,13 +456,12 @@ pub fn process_effect(
             );
             app_state.add_narrative(
                 format!(
-                    "Death save SUCCESS! Rolled {} ({}/3 successes)",
-                    roll, total_successes
+                    "Death save SUCCESS! Rolled {roll} ({total_successes}/3 successes)"
                 ),
                 NarrativeType::Combat,
                 time,
             );
-            app_state.set_status(format!("Death saves: {}/3 successes", total_successes), time);
+            app_state.set_status(format!("Death saves: {total_successes}/3 successes"), time);
         }
 
         Effect::Stabilized { .. } => {
@@ -489,13 +484,12 @@ pub fn process_effect(
             animations::spawn_combat_effect(commands, EffectType::DamageFlash, Vec2::ZERO, 0.6);
             app_state.add_narrative(
                 format!(
-                    "CONCENTRATION BROKEN! Took {} damage, rolled {} vs DC {} - {} ends!",
-                    damage_taken, roll, dc, spell_name
+                    "CONCENTRATION BROKEN! Took {damage_taken} damage, rolled {roll} vs DC {dc} - {spell_name} ends!"
                 ),
                 NarrativeType::Combat,
                 time,
             );
-            app_state.set_status(format!("Lost concentration on {}!", spell_name), time);
+            app_state.set_status(format!("Lost concentration on {spell_name}!"), time);
         }
 
         Effect::ConcentrationMaintained {
@@ -506,8 +500,7 @@ pub fn process_effect(
         } => {
             app_state.add_narrative(
                 format!(
-                    "Concentration maintained! Rolled {} vs DC {} - {} continues.",
-                    roll, dc, spell_name
+                    "Concentration maintained! Rolled {roll} vs DC {dc} - {spell_name} continues."
                 ),
                 NarrativeType::System,
                 time,
@@ -519,11 +512,11 @@ pub fn process_effect(
             new_location,
         } => {
             app_state.add_narrative(
-                format!("You travel from {} to {}.", previous_location, new_location),
+                format!("You travel from {previous_location} to {new_location}."),
                 NarrativeType::System,
                 time,
             );
-            app_state.set_status(format!("Now at: {}", new_location), time);
+            app_state.set_status(format!("Now at: {new_location}"), time);
         }
     }
 }

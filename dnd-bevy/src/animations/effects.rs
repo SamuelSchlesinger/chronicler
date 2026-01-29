@@ -30,6 +30,7 @@ pub enum EffectType {
 
 /// Component for combat effect animations.
 #[derive(Component)]
+#[allow(dead_code)]
 pub struct CombatEffect {
     /// Type of effect.
     pub effect_type: EffectType,
@@ -123,6 +124,7 @@ pub fn animate_combat_effects(
     }
 }
 
+#[allow(dead_code)]
 impl CombatEffect {
     /// Get the color for flash effects.
     pub fn flash_color(&self) -> Option<Color> {

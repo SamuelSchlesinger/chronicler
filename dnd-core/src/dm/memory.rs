@@ -184,7 +184,7 @@ impl DmMemory {
                 let char_count = action.chars().count();
                 let truncated = if char_count > 100 {
                     let truncated_str: String = action.chars().take(100).collect();
-                    format!("{}...", truncated_str)
+                    format!("{truncated_str}...")
                 } else {
                     action.to_string()
                 };

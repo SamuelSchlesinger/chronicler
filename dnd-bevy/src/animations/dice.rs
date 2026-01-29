@@ -10,6 +10,7 @@ use super::AnimationLifetime;
 
 /// Component for dice animation state.
 #[derive(Component)]
+#[allow(dead_code)]
 pub struct DiceAnimation {
     /// The final result to display.
     pub result: i32,
@@ -44,6 +45,7 @@ pub enum DiceType {
     D100,
 }
 
+#[allow(dead_code)]
 impl DiceType {
     /// Get the maximum value for this die.
     pub fn max_value(&self) -> i32 {

@@ -25,7 +25,7 @@ pub fn render_input_panel(ctx: &egui::Context, app_state: &mut AppState) {
                 let response = ui.add_sized(
                     [ui.available_width() - 80.0, 30.0],
                     egui::TextEdit::singleline(&mut app_state.input_text)
-                        .hint_text("What do you do? (↑↓ for history)")
+                        .hint_text("What do you do? (Up/Down for history)")
                         .interactive(!app_state.is_processing),
                 );
 

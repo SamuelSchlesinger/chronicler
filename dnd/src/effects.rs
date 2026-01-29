@@ -233,12 +233,12 @@ pub fn process_effect(app: &mut App, effect: &Effect) {
             new_total,
         } => {
             let qty_str = if *quantity > 1 {
-                format!("{} x ", quantity)
+                format!("{quantity} x ")
             } else {
                 String::new()
             };
             app.add_narrative(
-                format!("Received {}{}! (now have {})", qty_str, item_name, new_total),
+                format!("Received {qty_str}{item_name}! (now have {new_total})"),
                 NarrativeType::System,
             );
         }
@@ -249,18 +249,18 @@ pub fn process_effect(app: &mut App, effect: &Effect) {
             remaining,
         } => {
             let qty_str = if *quantity > 1 {
-                format!("{} x ", quantity)
+                format!("{quantity} x ")
             } else {
                 String::new()
             };
             if *remaining > 0 {
                 app.add_narrative(
-                    format!("Lost {}{}. ({} remaining)", qty_str, item_name, remaining),
+                    format!("Lost {qty_str}{item_name}. ({remaining} remaining)"),
                     NarrativeType::System,
                 );
             } else {
                 app.add_narrative(
-                    format!("Lost {}{}.", qty_str, item_name),
+                    format!("Lost {qty_str}{item_name}."),
                     NarrativeType::System,
                 );
             }
@@ -268,21 +268,21 @@ pub fn process_effect(app: &mut App, effect: &Effect) {
 
         Effect::ItemEquipped { item_name, slot } => {
             app.add_narrative(
-                format!("Equipped {} in {} slot.", item_name, slot),
+                format!("Equipped {item_name} in {slot} slot."),
                 NarrativeType::System,
             );
         }
 
         Effect::ItemUnequipped { item_name, slot } => {
             app.add_narrative(
-                format!("Unequipped {} from {} slot.", item_name, slot),
+                format!("Unequipped {item_name} from {slot} slot."),
                 NarrativeType::System,
             );
         }
 
         Effect::ItemUsed { item_name, result } => {
             app.add_narrative(
-                format!("Used {}. {}", item_name, result),
+                format!("Used {item_name}. {result}"),
                 NarrativeType::System,
             );
         }
@@ -307,7 +307,7 @@ pub fn process_effect(app: &mut App, effect: &Effect) {
 
         Effect::AcChanged { new_ac, source } => {
             app.add_narrative(
-                format!("AC changed to {} ({})", new_ac, source),
+                format!("AC changed to {new_ac} ({source})"),
                 NarrativeType::System,
             );
         }
@@ -319,15 +319,14 @@ pub fn process_effect(app: &mut App, effect: &Effect) {
         } => {
             app.add_narrative(
                 format!(
-                    "DEATH SAVE FAILURE from {}! ({}/3 failures)",
-                    source, total_failures
+                    "DEATH SAVE FAILURE from {source}! ({total_failures}/3 failures)"
                 ),
                 NarrativeType::Combat,
             );
             if *total_failures >= 3 {
                 app.set_status("You have died!");
             } else {
-                app.set_status(format!("Death saves: {}/3 failures", total_failures));
+                app.set_status(format!("Death saves: {total_failures}/3 failures"));
             }
         }
 
@@ -340,7 +339,7 @@ pub fn process_effect(app: &mut App, effect: &Effect) {
 
         Effect::CharacterDied { cause, .. } => {
             app.add_narrative(
-                format!("YOU HAVE DIED! Cause: {}", cause),
+                format!("YOU HAVE DIED! Cause: {cause}"),
                 NarrativeType::Combat,
             );
             app.set_status("GAME OVER - Your character has died.");
@@ -353,12 +352,11 @@ pub fn process_effect(app: &mut App, effect: &Effect) {
         } => {
             app.add_narrative(
                 format!(
-                    "Death save SUCCESS! Rolled {} ({}/3 successes)",
-                    roll, total_successes
+                    "Death save SUCCESS! Rolled {roll} ({total_successes}/3 successes)"
                 ),
                 NarrativeType::Combat,
             );
-            app.set_status(format!("Death saves: {}/3 successes", total_successes));
+            app.set_status(format!("Death saves: {total_successes}/3 successes"));
         }
 
         Effect::Stabilized { .. } => {
@@ -378,12 +376,11 @@ pub fn process_effect(app: &mut App, effect: &Effect) {
         } => {
             app.add_narrative(
                 format!(
-                    "CONCENTRATION BROKEN! Took {} damage, rolled {} vs DC {} - {} ends!",
-                    damage_taken, roll, dc, spell_name
+                    "CONCENTRATION BROKEN! Took {damage_taken} damage, rolled {roll} vs DC {dc} - {spell_name} ends!"
                 ),
                 NarrativeType::Combat,
             );
-            app.set_status(format!("Lost concentration on {}!", spell_name));
+            app.set_status(format!("Lost concentration on {spell_name}!"));
         }
 
         Effect::ConcentrationMaintained {
@@ -394,11 +391,21 @@ pub fn process_effect(app: &mut App, effect: &Effect) {
         } => {
             app.add_narrative(
                 format!(
-                    "Concentration maintained! Rolled {} vs DC {} - {} continues.",
-                    roll, dc, spell_name
+                    "Concentration maintained! Rolled {roll} vs DC {dc} - {spell_name} continues."
                 ),
                 NarrativeType::System,
             );
+        }
+
+        Effect::LocationChanged {
+            previous_location,
+            new_location,
+        } => {
+            app.add_narrative(
+                format!("Traveled from {previous_location} to {new_location}."),
+                NarrativeType::System,
+            );
+            app.set_status(format!("Now at: {new_location}"));
         }
     }
 }

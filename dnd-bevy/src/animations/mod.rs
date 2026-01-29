@@ -9,9 +9,9 @@ pub mod damage;
 pub mod dice;
 pub mod effects;
 
-pub use damage::{animate_damage_numbers, spawn_damage_number, DamageNumber};
-pub use dice::{animate_dice, spawn_dice_animation, DiceAnimation};
-pub use effects::{animate_combat_effects, spawn_combat_effect, CombatEffect};
+pub use damage::{animate_damage_numbers, spawn_damage_number};
+pub use dice::{animate_dice, spawn_dice_animation};
+pub use effects::{animate_combat_effects, spawn_combat_effect};
 
 use bevy::prelude::*;
 

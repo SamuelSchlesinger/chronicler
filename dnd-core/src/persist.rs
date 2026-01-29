@@ -292,7 +292,7 @@ impl CampaignExport {
                 let char_count = n.content.chars().count();
                 if char_count > 100 {
                     let truncated: String = n.content.chars().take(100).collect();
-                    format!("{}...", truncated)
+                    format!("{truncated}...")
                 } else {
                     n.content.clone()
                 }

@@ -19,6 +19,7 @@ pub struct CharacterPanelWidget<'a> {
     focused: bool,
 }
 
+#[allow(dead_code)]
 impl<'a> CharacterPanelWidget<'a> {
     pub fn new(character: &'a Character, theme: &'a GameTheme) -> Self {
         Self {
