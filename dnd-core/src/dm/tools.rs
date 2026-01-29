@@ -724,7 +724,7 @@ impl DmTools {
     fn start_combat() -> Tool {
         Tool {
             name: "start_combat".to_string(),
-            description: "Start a combat encounter. Initiative will be rolled for all combatants."
+            description: "Start a combat encounter. Initiative will be rolled for all combatants. Provide enemy stats based on D&D 5e SRD creatures."
                 .to_string(),
             input_schema: json!({
                 "type": "object",
@@ -734,11 +734,26 @@ impl DmTools {
                         "items": {
                             "type": "object",
                             "properties": {
-                                "name": { "type": "string" }
+                                "name": {
+                                    "type": "string",
+                                    "description": "Enemy name (e.g., 'Goblin', 'Orc', 'Wolf')"
+                                },
+                                "max_hp": {
+                                    "type": "integer",
+                                    "description": "Maximum hit points (e.g., Goblin: 7, Orc: 15, Wolf: 11)"
+                                },
+                                "armor_class": {
+                                    "type": "integer",
+                                    "description": "Armor class (e.g., Goblin: 15, Orc: 13, Wolf: 13)"
+                                },
+                                "initiative_modifier": {
+                                    "type": "integer",
+                                    "description": "Initiative modifier based on DEX (e.g., Goblin: +2, Orc: +1, Wolf: +2)"
+                                }
                             },
                             "required": ["name"]
                         },
-                        "description": "List of enemy combatants"
+                        "description": "List of enemy combatants with their stats"
                     }
                 },
                 "required": ["enemies"]
