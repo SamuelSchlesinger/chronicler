@@ -20,9 +20,12 @@ pub async fn run_headless(config: HeadlessConfig) -> Result<(), SessionError> {
 
     // Print initial game info
     println!("=== D&D Headless Mode ===");
-    println!("Character: {} ({} {})", game.player_name(),
-             game.player_class().unwrap_or("Unknown"),
-             game.player_background());
+    println!(
+        "Character: {} ({} {})",
+        game.player_name(),
+        game.player_class().unwrap_or("Unknown"),
+        game.player_background()
+    );
     println!("Location: {}", game.current_location());
     println!("HP: {}/{}", game.current_hp(), game.max_hp());
     println!();
@@ -54,8 +57,8 @@ pub async fn run_headless(config: HeadlessConfig) -> Result<(), SessionError> {
         }
 
         // Handle commands
-        if line.starts_with('#') {
-            let parts: Vec<&str> = line[1..].split_whitespace().collect();
+        if let Some(cmd) = line.strip_prefix('#') {
+            let parts: Vec<&str> = cmd.split_whitespace().collect();
             match parts.first().copied() {
                 Some("quit") | Some("exit") => {
                     println!("Goodbye!");
@@ -77,11 +80,13 @@ pub async fn run_headless(config: HeadlessConfig) -> Result<(), SessionError> {
                             Ok(loaded) => {
                                 game = loaded;
                                 println!("[LOADED] Game loaded from {path}");
-                                println!("[STATUS] {} at {}, HP: {}/{}",
-                                         game.player_name(),
-                                         game.current_location(),
-                                         game.current_hp(),
-                                         game.max_hp());
+                                println!(
+                                    "[STATUS] {} at {}, HP: {}/{}",
+                                    game.player_name(),
+                                    game.current_location(),
+                                    game.current_hp(),
+                                    game.max_hp()
+                                );
                             }
                             Err(e) => println!("[ERROR] Load failed: {e}"),
                         }
@@ -91,10 +96,12 @@ pub async fn run_headless(config: HeadlessConfig) -> Result<(), SessionError> {
                 }
                 Some("status") => {
                     println!("[STATUS]");
-                    println!("  Character: {} ({} {})",
-                             game.player_name(),
-                             game.player_class().unwrap_or("Unknown"),
-                             game.player_background());
+                    println!(
+                        "  Character: {} ({} {})",
+                        game.player_name(),
+                        game.player_class().unwrap_or("Unknown"),
+                        game.player_background()
+                    );
                     println!("  Location: {}", game.current_location());
                     println!("  HP: {}/{}", game.current_hp(), game.max_hp());
                     println!("  In Combat: {}", game.in_combat());
@@ -148,10 +155,10 @@ pub async fn run_headless(config: HeadlessConfig) -> Result<(), SessionError> {
 
                 // Print status if notable
                 if response.in_combat {
-                    println!("[COMBAT] HP: {}/{}, Your turn: {}",
-                             response.current_hp,
-                             response.max_hp,
-                             response.is_player_turn);
+                    println!(
+                        "[COMBAT] HP: {}/{}, Your turn: {}",
+                        response.current_hp, response.max_hp, response.is_player_turn
+                    );
                 }
             }
             Err(e) => {

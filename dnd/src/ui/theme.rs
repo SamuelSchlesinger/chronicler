@@ -114,7 +114,12 @@ impl GameTheme {
     }
 
     /// Get style for dice roll result
-    pub fn roll_result_style(&self, is_crit: bool, is_fumble: bool, success: Option<bool>) -> Style {
+    pub fn roll_result_style(
+        &self,
+        is_crit: bool,
+        is_fumble: bool,
+        success: Option<bool>,
+    ) -> Style {
         if is_crit {
             Style::default()
                 .fg(self.crit_success)

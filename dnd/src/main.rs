@@ -10,6 +10,7 @@
 //! cargo run -p dnd -- --headless --name "Thorin" --class fighter --race dwarf
 //! ```
 
+mod ai_worker;
 mod app;
 mod character_creation;
 mod effects;
@@ -22,13 +23,16 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use dnd_core::world::NarrativeType;
 use dnd_core::{GameSession, SessionConfig};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io::{self, stdout};
 use std::time::Duration;
 
+use ai_worker::{spawn_worker, WorkerResponse};
 use app::App;
 use character_creation::CharacterCreation;
+use effects::process_effect;
 use events::{handle_event, EventResult};
 use ui::render::render;
 
@@ -109,8 +113,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
+    // Spawn the AI worker and get channel endpoints
+    let (request_tx, response_rx, initial_world) = spawn_worker(session);
+
+    // Create app with channels
+    let app = App::new(request_tx, response_rx, initial_world);
+
     // Run app
-    let result = run_app(&mut terminal, App::new(session)).await;
+    let result = run_app(&mut terminal, app).await;
 
     // Restore terminal
     disable_raw_mode()?;
@@ -165,72 +175,100 @@ async fn run_app<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     mut app: App,
 ) -> io::Result<()> {
-    // Track pending input for async processing
-    let mut pending_input: Option<String> = None;
-
     loop {
         // Render
         terminal.draw(|f| render(f, &app))?;
 
-        // Process any pending save operation
-        if let Some(path) = app.pending_save.take() {
-            match app.session.save(&path).await {
-                Ok(()) => {
-                    app.set_status(format!("Saved to {}", path.display()));
-                    app.add_narrative(
-                        format!("Game saved to {}.", path.display()),
-                        dnd_core::world::NarrativeType::System,
-                    );
-                    // If this was a :wq command, now it's safe to quit
-                    if app.quit_after_save {
-                        app.should_quit = true;
+        // Non-blocking poll for AI worker responses
+        while let Ok(response) = app.response_rx.try_recv() {
+            match response {
+                WorkerResponse::StreamChunk(text) => {
+                    app.append_streaming_text(&text);
+                }
+                WorkerResponse::Effect(effect) => {
+                    process_effect(&mut app, &effect);
+                }
+                WorkerResponse::Complete {
+                    narrative,
+                    effects: _,
+                    world_update,
+                    in_combat,
+                    is_player_turn: _,
+                } => {
+                    // Check if we have streaming text before finalizing
+                    let had_streaming = app.streaming_text.is_some();
+
+                    // Finalize any streaming text first
+                    app.finalize_streaming();
+
+                    // Add the narrative only if we weren't streaming
+                    // (streaming text is already added by finalize_streaming)
+                    if !had_streaming {
+                        app.add_narrative(narrative, NarrativeType::DmNarration);
+                    }
+
+                    // Update local world state
+                    app.apply_world_update(world_update);
+
+                    // Update status
+                    if in_combat {
+                        app.set_status("In combat!");
+                    } else {
+                        app.clear_status();
+                    }
+
+                    app.ai_processing = false;
+                }
+                WorkerResponse::Cancelled => {
+                    app.finalize_streaming();
+                    app.set_status("Cancelled");
+                    app.ai_processing = false;
+                }
+                WorkerResponse::Error(e) => {
+                    app.finalize_streaming();
+                    app.set_status(format!("Error: {e}"));
+                    app.ai_processing = false;
+                }
+                WorkerResponse::SaveComplete(result) => {
+                    match result {
+                        Ok(path) => {
+                            app.set_status(format!("Saved to {}", path.display()));
+                            app.add_narrative(
+                                format!("Game saved to {}.", path.display()),
+                                NarrativeType::System,
+                            );
+                            // If this was a :wq command, now it's safe to quit
+                            if app.quit_after_save {
+                                app.should_quit = true;
+                            }
+                        }
+                        Err(e) => {
+                            app.set_status(format!("Save failed: {e}"));
+                            // Don't quit on save failure
+                            app.quit_after_save = false;
+                        }
                     }
                 }
-                Err(e) => {
-                    app.set_status(format!("Save failed: {e}"));
-                    // Don't quit on save failure, let user see the error
-                    app.quit_after_save = false;
+                WorkerResponse::LoadComplete(result) => {
+                    match result {
+                        Ok(world_update) => {
+                            app.apply_world_update(world_update);
+                            app.narrative_history.clear();
+                            app.add_narrative(
+                                "Game loaded.".to_string(),
+                                NarrativeType::System,
+                            );
+                            app.set_status("Game loaded");
+                        }
+                        Err(e) => {
+                            app.set_status(format!("Load failed: {e}"));
+                        }
+                    }
                 }
             }
         }
 
-        // Process any pending load operation
-        if let Some(path) = app.pending_load.take() {
-            match GameSession::load(&path).await {
-                Ok(session) => {
-                    app.session = session;
-                    app.narrative_history.clear();
-                    app.add_narrative(
-                        format!("Game loaded from {}.", path.display()),
-                        dnd_core::world::NarrativeType::System,
-                    );
-                    app.set_status(format!("Loaded from {}", path.display()));
-                }
-                Err(e) => {
-                    app.set_status(format!("Load failed: {e}"));
-                }
-            }
-        }
-
-        // Process any pending input asynchronously
-        if let Some(input) = pending_input.take() {
-            // Add player input to narrative IMMEDIATELY (before processing)
-            // This ensures the user sees their input before the "Processing..." status
-            app.add_narrative(input.clone(), dnd_core::world::NarrativeType::PlayerAction);
-            app.set_status("Processing...");
-            terminal.draw(|f| render(f, &app))?;
-
-            // Ensure the draw is flushed to terminal before async wait
-            use std::io::Write;
-            let _ = std::io::stdout().flush();
-
-            if let Err(e) = app.process_player_input_without_echo(&input).await {
-                app.set_status(format!("Error: {e}"));
-            }
-            app.enter_normal_mode();
-        }
-
-        // Poll for events with timeout for animations
+        // Poll for terminal events with timeout for animations
         if event::poll(Duration::from_millis(100))? {
             let ev = event::read()?;
 
@@ -252,10 +290,24 @@ async fn run_app<B: ratatui::backend::Backend>(
                         // Get the input that was submitted (it's been cleared by submit_input)
                         if let Some(input) = input_before {
                             if !input.is_empty() {
-                                pending_input = Some(input);
+                                // Add player input to narrative IMMEDIATELY
+                                app.add_narrative(input.clone(), NarrativeType::PlayerAction);
+
+                                // Ensure the draw is flushed to terminal
+                                terminal.draw(|f| render(f, &app))?;
+                                use std::io::Write;
+                                let _ = std::io::stdout().flush();
+
+                                // Send to AI worker (non-blocking)
+                                app.send_player_action(input);
+                                app.enter_normal_mode();
                             }
                         }
                     }
+                }
+                EventResult::SendRequest(request) => {
+                    // Send a worker request (for save/load commands)
+                    let _ = app.request_tx.try_send(request);
                 }
                 EventResult::NeedsRedraw | EventResult::Continue => {
                     // Just continue the loop

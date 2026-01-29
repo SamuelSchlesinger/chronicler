@@ -7,7 +7,7 @@ pub mod input;
 pub mod narrative;
 pub mod status_bar;
 
-pub use character_panel::CharacterPanelWidget;
+// CharacterPanelWidget is not used - using SimplifiedCharacterWidget in render.rs instead
 pub use combat_tracker::{CombatTrackerWidget, EnemyHpWidget, EnemyStatus, HpEstimate};
 pub use dice_roll::{DiceAnimationState, DiceRollWidget};
 pub use input::InputWidget;
