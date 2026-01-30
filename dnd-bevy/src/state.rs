@@ -376,6 +376,8 @@ pub struct AppState {
     pub history_index: i32,
     /// Saved input text when browsing history.
     pub saved_input: String,
+    /// Spell currently being viewed in detail (None if not viewing any).
+    pub viewing_spell: Option<String>,
 }
 
 impl Default for AppState {
@@ -401,6 +403,7 @@ impl Default for AppState {
             input_history: Vec::new(),
             history_index: -1,
             saved_input: String::new(),
+            viewing_spell: None,
         }
     }
 }

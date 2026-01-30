@@ -125,7 +125,7 @@ pub fn main_ui_system(
             match app_state.overlay {
                 ActiveOverlay::None => {}
                 ActiveOverlay::Inventory => overlays::render_inventory(ctx, &app_state),
-                ActiveOverlay::CharacterSheet => overlays::render_character_sheet(ctx, &app_state),
+                ActiveOverlay::CharacterSheet => overlays::render_character_sheet(ctx, &mut app_state),
                 ActiveOverlay::QuestLog => overlays::render_quest_log(ctx, &app_state),
                 ActiveOverlay::Help => overlays::render_help(ctx),
                 ActiveOverlay::Settings => {
@@ -138,6 +138,11 @@ pub fn main_ui_system(
                     // These overlays are only used in MainMenu, close them if we're playing
                     app_state.overlay = ActiveOverlay::None;
                 }
+            }
+
+            // Render spell detail popup if viewing a spell
+            if app_state.viewing_spell.is_some() {
+                overlays::render_spell_detail(ctx, &mut app_state);
             }
 
             // Render error popup if present
