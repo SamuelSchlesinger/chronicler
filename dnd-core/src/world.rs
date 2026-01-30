@@ -739,6 +739,12 @@ pub struct ClassResources {
     /// Remaining HP in Wild Shape form
     pub wild_shape_hp: Option<i32>,
 
+    // Bard
+    /// Current Bardic Inspiration uses remaining
+    pub bardic_inspiration_uses: u8,
+    /// Maximum Bardic Inspiration uses (equals Charisma modifier, minimum 1)
+    pub max_bardic_inspiration: u8,
+
     // Cleric/Paladin
     /// Whether Channel Divinity has been used this short rest
     pub channel_divinity_used: bool,
@@ -780,6 +786,12 @@ impl ClassResources {
                 self.rage_active = false;
                 self.rage_rounds_remaining = None;
             }
+            CharacterClass::Bard => {
+                // Bardic Inspiration uses = CHA modifier (set by character builder)
+                // Default to 1 (minimum), actual value set based on ability scores
+                self.bardic_inspiration_uses = 1;
+                self.max_bardic_inspiration = 1;
+            }
             CharacterClass::Monk => {
                 // Ki points equal Monk level (starting at level 2)
                 if level >= 2 {
@@ -817,8 +829,14 @@ impl ClassResources {
     }
 
     /// Reset resources on a short rest
-    pub fn short_rest_recovery(&mut self, class: CharacterClass) {
+    pub fn short_rest_recovery(&mut self, class: CharacterClass, level: u8) {
         match class {
+            CharacterClass::Bard => {
+                // Font of Inspiration (level 5+) allows recovery on short rest
+                if level >= 5 {
+                    self.bardic_inspiration_uses = self.max_bardic_inspiration;
+                }
+            }
             CharacterClass::Fighter => {
                 self.action_surge_used = false;
                 self.second_wind_used = false;
@@ -833,17 +851,22 @@ impl ClassResources {
             }
             _ => {}
         }
+        let _ = level; // Used for Bard Font of Inspiration check
     }
 
     /// Reset resources on a long rest
     pub fn long_rest_recovery(&mut self, class: CharacterClass, level: u8) {
         // Long rest recovers everything a short rest does
-        self.short_rest_recovery(class);
+        self.short_rest_recovery(class, level);
 
         match class {
             CharacterClass::Barbarian => {
                 self.rage_active = false;
                 self.rage_rounds_remaining = None;
+            }
+            CharacterClass::Bard => {
+                // Full recovery on long rest
+                self.bardic_inspiration_uses = self.max_bardic_inspiration;
             }
             CharacterClass::Monk => {
                 self.ki_points = self.max_ki_points;
@@ -859,8 +882,6 @@ impl ClassResources {
             }
             _ => {}
         }
-        // Ignore unused level parameter for now
-        let _ = level;
     }
 }
 
@@ -2173,7 +2194,7 @@ impl GameWorld {
         for class_level in &self.player_character.classes {
             self.player_character
                 .class_resources
-                .short_rest_recovery(class_level.class);
+                .short_rest_recovery(class_level.class, class_level.level);
         }
     }
 

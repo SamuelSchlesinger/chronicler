@@ -4,8 +4,9 @@
 //! proper D&D 5e rules for ability scores, class features, and proficiencies.
 
 use crate::world::{
-    Ability, AbilityScores, Background, Character, CharacterClass, ClassLevel, HitDice, HitPoints,
-    ProficiencyLevel, Race, RaceType, Skill, SlotInfo, Speed, SpellSlots, SpellcastingData,
+    Ability, AbilityScores, Background, Character, CharacterClass, ClassLevel, ClassResources,
+    HitDice, HitPoints, ProficiencyLevel, Race, RaceType, Skill, SlotInfo, Speed, SpellSlots,
+    SpellcastingData,
 };
 use std::collections::{HashMap, HashSet};
 
@@ -419,6 +420,20 @@ impl CharacterBuilder {
                 });
             }
         }
+
+        // Initialize class-specific resources
+        let mut class_resources = ClassResources::default();
+        class_resources.initialize_for_class(class, 1);
+
+        // Set Bard's Bardic Inspiration uses based on Charisma modifier
+        if class == CharacterClass::Bard {
+            let cha_mod = character.ability_scores.modifier(Ability::Charisma);
+            let uses = (cha_mod.max(1)) as u8; // Minimum 1 use
+            class_resources.bardic_inspiration_uses = uses;
+            class_resources.max_bardic_inspiration = uses;
+        }
+
+        character.class_resources = class_resources;
 
         Ok(character)
     }
