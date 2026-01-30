@@ -1,8 +1,32 @@
 # dnd-ai
 
-A D&D 5e game with an AI Dungeon Master powered by Claude. Create a character and embark on procedurally-generated adventures with an AI that remembers your story, tracks consequences, and adapts to your choices.
+> *"Another seeker of forbidden knowledge, I presume? How... interesting."*
+>
+> *The woman's smile widens, revealing teeth that seem just a bit too sharp.*
+>
+> — [The Wizard's Bargain](docs/transcripts/wizards_bargain.md)
 
-![dnd-ai screenshot](docs/screenshots/gameplay.png)
+---
+
+> *Your divine power surges through the chamber like a thunderclap of pure faith! The holy light becomes almost blinding as it washes over the undead.*
+>
+> — [Into the Crypt](docs/transcripts/into_the_crypt.md)
+
+---
+
+> *"They were drained, Lyra. Not torn apart like an animal attack. Drained. Like something had sucked the very life from them."*
+>
+> — [Tavern Trouble](docs/transcripts/tavern_trouble.md)
+
+---
+
+> *The roar that erupts from your throat echoes off the stone walls like the bellow of a primordial beast. Your fists pound against your chest in a primal display of dominance. The crowd erupts!*
+>
+> — [Blood and Thunder](docs/transcripts/blood_and_thunder.md)
+
+---
+
+A D&D 5e game with an AI Dungeon Master powered by Claude. Create a character and embark on procedurally-generated adventures with an AI that remembers your story, tracks consequences, and adapts to your choices.
 
 ## Quick Start
 
@@ -42,6 +66,19 @@ The AI Dungeon Master will narrate your adventure, describe scenes, run combat, 
 - **Consequence System** - Your actions have lasting effects that resurface naturally
 - **Save/Load** - Continue your campaign across sessions
 - **Character Creation** - Choose from SRD races, classes, and backgrounds
+
+## Example Transcripts
+
+See the AI Dungeon Master in action:
+
+| Adventure | Description |
+|-----------|-------------|
+| [**The Goblin Ambush**](docs/transcripts/goblin_ambush.md) | A dwarf fighter springs a trap on the forest road. Death saves ensue. |
+| [**Tavern Trouble**](docs/transcripts/tavern_trouble.md) | A bard's performance wins hearts and uncovers a deadly mystery. |
+| [**The Wizard's Bargain**](docs/transcripts/wizards_bargain.md) | An elf seeks forbidden knowledge. A stranger offers a deal. |
+| [**Into the Crypt**](docs/transcripts/into_the_crypt.md) | A cleric descends into darkness to face the restless dead. |
+| [**The Heist**](docs/transcripts/the_heist.md) | A halfling rogue infiltrates a merchant lord's manor. |
+| [**Blood and Thunder**](docs/transcripts/blood_and_thunder.md) | A half-orc barbarian faces certain death in the gladiator's arena. |
 
 ## Requirements
 
