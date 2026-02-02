@@ -58,7 +58,30 @@ impl DmTools {
             Self::use_sorcery_points(),
             // Spellcasting
             Self::cast_spell(),
+            // Progression
+            Self::award_experience(),
         ]
+    }
+
+    fn award_experience() -> Tool {
+        Tool {
+            name: "award_experience".to_string(),
+            description: "Award experience points (XP) to the player character. Use this after combat victories, completing quests, clever problem-solving, or significant story achievements. Standard XP awards: trivial encounter (25-50), easy encounter (50-100), medium encounter (100-200), hard encounter (200-400), deadly encounter (400+), quest completion (varies by significance).".to_string(),
+            input_schema: json!({
+                "type": "object",
+                "properties": {
+                    "amount": {
+                        "type": "integer",
+                        "description": "Amount of XP to award"
+                    },
+                    "reason": {
+                        "type": "string",
+                        "description": "Why the XP is being awarded (e.g., 'defeated goblin ambush', 'completed quest')"
+                    }
+                },
+                "required": ["amount", "reason"]
+            }),
+        }
     }
 
     fn change_location() -> Tool {
@@ -1402,6 +1425,11 @@ pub fn parse_tool_call(name: &str, input: &Value, world: &GameWorld) -> Option<I
                 spell_level: slot_level,
                 target_names: targets,
             })
+        }
+
+        "award_experience" => {
+            let amount = input["amount"].as_u64()? as u32;
+            Some(Intent::GainExperience { amount })
         }
 
         // show_inventory is handled specially via execute_info_tool

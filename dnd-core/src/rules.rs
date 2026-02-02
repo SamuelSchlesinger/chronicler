@@ -10,7 +10,10 @@
 //! independent of AI decision-making.
 
 use crate::dice::{self, Advantage, ComponentResult, DiceExpression, DieType, RollResult};
-use crate::world::{Ability, CharacterId, Combatant, Condition, GameWorld, Item, ItemType, Skill};
+use crate::world::{
+    Ability, CharacterClass, CharacterId, Combatant, Condition, GameWorld, Item, ItemType, Skill,
+    SlotInfo, SpellSlots, SpellcastingData,
+};
 use serde::{Deserialize, Serialize};
 
 /// Roll dice with a fallback expression. If both fail, returns a minimal result.
@@ -3290,7 +3293,119 @@ pub fn apply_effect(world: &mut GameWorld, effect: &Effect) {
             world.player_character.experience += amount;
         }
         Effect::LevelUp { new_level } => {
-            world.player_character.level = *new_level;
+            let character = &mut world.player_character;
+            let old_level = character.level;
+            character.level = *new_level;
+
+            // Get the primary class for level-up calculations
+            if let Some(class_level) = character.classes.first_mut() {
+                let class = class_level.class;
+                let hit_die = class.hit_die();
+
+                // Update class level
+                class_level.level = *new_level;
+
+                // Add HP: roll hit die + CON modifier (use average for consistency)
+                // Average is (max/2 + 1), e.g., d8 = 5, d10 = 6, d12 = 7
+                let hit_die_average = (hit_die.sides() / 2 + 1) as i32;
+                let con_mod = character.ability_scores.modifier(Ability::Constitution) as i32;
+                let hp_gained = (hit_die_average + con_mod).max(1);
+                character.hit_points.maximum += hp_gained;
+                character.hit_points.current += hp_gained;
+
+                // Add a hit die
+                character.hit_dice.add(hit_die, 1);
+
+                // Update spell slots for spellcasters
+                if class.spellcasting_ability().is_some() {
+                    let new_slots = class.spell_slots_at_level(*new_level);
+
+                    if let Some(ref mut spellcasting) = character.spellcasting {
+                        for (i, &total) in new_slots.iter().enumerate() {
+                            let old_total = spellcasting.spell_slots.slots[i].total;
+                            spellcasting.spell_slots.slots[i].total = total;
+                            // Restore any new slots gained
+                            if total > old_total {
+                                let gained = total - old_total;
+                                spellcasting.spell_slots.slots[i].used =
+                                    spellcasting.spell_slots.slots[i].used.saturating_sub(gained);
+                            }
+                        }
+                    } else if new_slots.iter().any(|&s| s > 0) {
+                        // Class just gained spellcasting (e.g., Paladin/Ranger at level 2)
+                        character.spellcasting = Some(SpellcastingData {
+                            ability: class.spellcasting_ability().unwrap(),
+                            spells_known: Vec::new(),
+                            spells_prepared: Vec::new(),
+                            cantrips_known: Vec::new(),
+                            spell_slots: SpellSlots {
+                                slots: std::array::from_fn(|i| SlotInfo {
+                                    total: new_slots[i],
+                                    used: 0,
+                                }),
+                            },
+                        });
+                    }
+                }
+
+                // Update class resources based on class and level
+                match class {
+                    CharacterClass::Monk => {
+                        // Ki points = Monk level
+                        character.class_resources.max_ki_points = *new_level;
+                        character.class_resources.ki_points = *new_level;
+                    }
+                    CharacterClass::Sorcerer => {
+                        // Sorcery points = Sorcerer level (gained at level 2)
+                        if *new_level >= 2 {
+                            character.class_resources.max_sorcery_points = *new_level;
+                            // Give the new points
+                            let gained = *new_level - old_level;
+                            character.class_resources.sorcery_points = (character
+                                .class_resources
+                                .sorcery_points
+                                + gained)
+                                .min(character.class_resources.max_sorcery_points);
+                        }
+                    }
+                    CharacterClass::Paladin => {
+                        // Lay on Hands pool = 5 × Paladin level
+                        character.class_resources.lay_on_hands_max = (*new_level as u32) * 5;
+                        // Restore to full on level up
+                        character.class_resources.lay_on_hands_pool =
+                            character.class_resources.lay_on_hands_max;
+                    }
+                    CharacterClass::Barbarian => {
+                        // Rage uses increase at certain levels
+                        let rage_uses = match *new_level {
+                            1..=2 => 2,
+                            3..=5 => 3,
+                            6..=11 => 4,
+                            12..=16 => 5,
+                            17..=19 => 6,
+                            20 => u8::MAX, // Unlimited at 20
+                            _ => 2,
+                        };
+                        // Update rage feature uses
+                        if let Some(rage_feature) =
+                            character.features.iter_mut().find(|f| f.name == "Rage")
+                        {
+                            if let Some(ref mut uses) = rage_feature.uses {
+                                uses.maximum = rage_uses;
+                                uses.current = rage_uses;
+                            }
+                        }
+                        // Rage damage bonus increases at levels 9 and 16
+                        character.class_resources.rage_damage_bonus = match *new_level {
+                            1..=8 => 2,
+                            9..=15 => 3,
+                            16..=20 => 4,
+                            _ => 2,
+                        };
+                    }
+                    _ => {}
+                }
+            }
         }
         Effect::FeatureUsed {
             feature_name,
