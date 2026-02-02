@@ -74,6 +74,29 @@ impl Skill {
             Skill::Persuasion => "Persuasion",
         }
     }
+
+    pub fn description(&self) -> &'static str {
+        match self {
+            Skill::Athletics => "Covers climbing, jumping, or swimming. Used for scaling cliffs, avoiding hazards, or struggling against currents.",
+            Skill::Acrobatics => "Staying on your feet in tricky situations like balancing on tightropes, running across ice, or performing acrobatic stunts.",
+            Skill::SleightOfHand => "Acts of legerdemain such as planting something on someone, concealing objects, or picking pockets.",
+            Skill::Stealth => "Concealing yourself from enemies, slinking past guards, slipping away unnoticed, or sneaking up on someone.",
+            Skill::Arcana => "Recall lore about spells, magic items, eldritch symbols, magical traditions, and planes of existence.",
+            Skill::History => "Recall lore about historical events, legendary people, ancient kingdoms, past disputes, and lost civilizations.",
+            Skill::Investigation => "Looking for clues and making deductions. Deduce hidden locations, determine weapon types, or find structural weaknesses.",
+            Skill::Nature => "Recall lore about terrain, plants, animals, weather, and natural cycles.",
+            Skill::Religion => "Recall lore about deities, rites, prayers, religious hierarchies, holy symbols, and secret cults.",
+            Skill::AnimalHandling => "Calm domesticated animals, keep mounts from being spooked, intuit animal intentions, or control mounts during risky maneuvers.",
+            Skill::Insight => "Discern true intentions of a creature, detect lies, or predict someone's next move through body language and speech patterns.",
+            Skill::Medicine => "Stabilize a dying companion or diagnose an illness. Covers practical medical knowledge rather than magical healing.",
+            Skill::Perception => "Spot, hear, or detect the presence of something. Measures general awareness and keenness of senses.",
+            Skill::Survival => "Follow tracks, hunt game, guide groups through wastelands, identify nearby creatures, predict weather, or avoid natural hazards.",
+            Skill::Deception => "Convincingly hide the truth through ambiguity, lies, or maintaining a disguise.",
+            Skill::Intimidation => "Influence someone through overt threats, hostile actions, or physical violence.",
+            Skill::Performance => "Delight an audience with music, dance, acting, storytelling, or other entertainment.",
+            Skill::Persuasion => "Influence someone through tact, social graces, or good nature. Used for cordial requests or proper etiquette.",
+        }
+    }
 }
 
 impl fmt::Display for Skill {

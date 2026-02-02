@@ -117,6 +117,204 @@ impl CharacterClass {
         }
     }
 
+    /// Returns the total number of cantrips known at a given level.
+    pub fn cantrips_known_at_level(&self, level: u8) -> usize {
+        match self {
+            CharacterClass::Bard => match level {
+                1..=3 => 2,
+                4..=9 => 3,
+                10..=13 => 4,
+                14..=20 => 5,
+                _ => 2,
+            },
+            CharacterClass::Cleric => match level {
+                1..=3 => 3,
+                4..=9 => 4,
+                10..=20 => 5,
+                _ => 3,
+            },
+            CharacterClass::Druid => match level {
+                1..=3 => 2,
+                4..=9 => 3,
+                10..=20 => 4,
+                _ => 2,
+            },
+            CharacterClass::Sorcerer => match level {
+                1..=3 => 4,
+                4..=9 => 5,
+                10..=20 => 6,
+                _ => 4,
+            },
+            CharacterClass::Warlock => match level {
+                1..=3 => 2,
+                4..=9 => 3,
+                10..=20 => 4,
+                _ => 2,
+            },
+            CharacterClass::Wizard => match level {
+                1..=3 => 3,
+                4..=9 => 4,
+                10..=20 => 5,
+                _ => 3,
+            },
+            _ => 0,
+        }
+    }
+
+    /// Returns the total number of spells known at a given level.
+    /// For "known" casters (Bard, Sorcerer, Warlock, Ranger).
+    /// Returns None for prepared casters (Cleric, Druid, Paladin) and Wizard (spellbook).
+    pub fn spells_known_at_level(&self, level: u8) -> Option<usize> {
+        match self {
+            // Bard: spells known progression
+            CharacterClass::Bard => Some(match level {
+                1 => 4,
+                2 => 5,
+                3 => 6,
+                4 => 7,
+                5 => 8,
+                6 => 9,
+                7 => 10,
+                8 => 11,
+                9 => 12,
+                10 => 14,
+                11 => 15,
+                12 => 15,
+                13 => 16,
+                14 => 18,
+                15 => 19,
+                16 => 19,
+                17 => 20,
+                18 => 22,
+                19 => 22,
+                20 => 22,
+                _ => 4,
+            }),
+            // Sorcerer: spells known progression
+            CharacterClass::Sorcerer => Some(match level {
+                1 => 2,
+                2 => 3,
+                3 => 4,
+                4 => 5,
+                5 => 6,
+                6 => 7,
+                7 => 8,
+                8 => 9,
+                9 => 10,
+                10 => 11,
+                11 => 12,
+                12 => 12,
+                13 => 13,
+                14 => 13,
+                15 => 14,
+                16 => 14,
+                17 => 15,
+                18 => 15,
+                19 => 15,
+                20 => 15,
+                _ => 2,
+            }),
+            // Warlock: spells known progression
+            CharacterClass::Warlock => Some(match level {
+                1 => 2,
+                2 => 3,
+                3 => 4,
+                4 => 5,
+                5 => 6,
+                6 => 7,
+                7 => 8,
+                8 => 9,
+                9 => 10,
+                10 => 10,
+                11 => 11,
+                12 => 11,
+                13 => 12,
+                14 => 12,
+                15 => 13,
+                16 => 13,
+                17 => 14,
+                18 => 14,
+                19 => 15,
+                20 => 15,
+                _ => 2,
+            }),
+            // Ranger: spells known progression (starts at level 2)
+            CharacterClass::Ranger => Some(match level {
+                1 => 0,
+                2 => 2,
+                3 => 3,
+                4 => 3,
+                5 => 4,
+                6 => 4,
+                7 => 5,
+                8 => 5,
+                9 => 6,
+                10 => 6,
+                11 => 7,
+                12 => 7,
+                13 => 8,
+                14 => 8,
+                15 => 9,
+                16 => 9,
+                17 => 10,
+                18 => 10,
+                19 => 11,
+                20 => 11,
+                _ => 0,
+            }),
+            // Wizard uses spellbook, not spells known
+            // Cleric, Druid, Paladin prepare spells
+            _ => None,
+        }
+    }
+
+    /// Returns how many spells a Wizard adds to their spellbook at the given level.
+    /// Wizards add 2 spells per level (6 at level 1, then 2 per level after).
+    pub fn wizard_spellbook_spells_at_level(&self, level: u8) -> usize {
+        match self {
+            CharacterClass::Wizard => {
+                if level == 1 {
+                    6
+                } else {
+                    2
+                }
+            }
+            _ => 0,
+        }
+    }
+
+    /// Returns the maximum number of spells a prepared caster can prepare.
+    /// Formula: spellcasting ability modifier + class level (minimum 1).
+    /// For half-casters (Paladin, Ranger), it's ability mod + half class level.
+    pub fn max_prepared_spells(&self, level: u8, ability_modifier: i8) -> Option<usize> {
+        let base = match self {
+            CharacterClass::Cleric | CharacterClass::Druid => {
+                (ability_modifier as i32 + level as i32).max(1) as usize
+            }
+            CharacterClass::Paladin => {
+                if level >= 2 {
+                    (ability_modifier as i32 + (level as i32 / 2)).max(1) as usize
+                } else {
+                    0
+                }
+            }
+            // Ranger uses spells known, not prepared
+            _ => return None,
+        };
+        Some(base)
+    }
+
+    /// Returns the highest spell level this class can cast at a given character level.
+    pub fn max_spell_level(&self, level: u8) -> u8 {
+        let slots = self.spell_slots_at_level(level);
+        for (spell_level, &count) in slots.iter().enumerate().rev() {
+            if count > 0 {
+                return (spell_level + 1) as u8;
+            }
+        }
+        0
+    }
+
     /// Returns spell slots for a given character level.
     /// Returns an array of 9 elements representing slots for spell levels 1-9.
     pub fn spell_slots_at_level(&self, level: u8) -> [u8; 9] {
