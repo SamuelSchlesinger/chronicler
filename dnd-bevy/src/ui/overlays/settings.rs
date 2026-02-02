@@ -3,12 +3,15 @@
 use bevy_egui::egui;
 
 use crate::state::{ActiveOverlay, AppState};
+use crate::window::WindowSettings;
 
 /// Render the settings overlay. Returns true if user wants to return to main menu.
 pub fn render_settings(
     ctx: &egui::Context,
     app_state: &mut AppState,
     sound_settings: Option<&mut crate::sound::SoundSettings>,
+    window_settings: Option<&mut WindowSettings>,
+    saves_path: &str,
 ) -> bool {
     let mut return_to_menu = false;
 
@@ -28,6 +31,46 @@ pub fn render_settings(
 
             // Display section
             ui.collapsing(egui::RichText::new("Display").strong(), |ui| {
+                // Window settings - resolution only (fullscreen disabled due to macOS issues)
+                if let Some(window) = window_settings {
+                    ui.horizontal(|ui| {
+                        ui.label("Window size:");
+                        egui::ComboBox::from_id_salt("resolution")
+                            .selected_text(format!(
+                                "{}x{}",
+                                window.width as u32, window.height as u32
+                            ))
+                            .show_ui(ui, |ui| {
+                                let resolutions = [
+                                    (1280.0, 720.0, "1280x720 (HD)"),
+                                    (1280.0, 800.0, "1280x800"),
+                                    (1366.0, 768.0, "1366x768"),
+                                    (1600.0, 900.0, "1600x900"),
+                                    (1920.0, 1080.0, "1920x1080 (Full HD)"),
+                                    (2560.0, 1440.0, "2560x1440 (QHD)"),
+                                ];
+                                for (w, h, label) in resolutions {
+                                    if ui
+                                        .selectable_label(
+                                            (window.width - w).abs() < 1.0
+                                                && (window.height - h).abs() < 1.0,
+                                            label,
+                                        )
+                                        .clicked()
+                                    {
+                                        window.width = w;
+                                        window.height = h;
+                                        window.fullscreen = false; // Ensure windowed mode
+                                        window.mark_changed();
+                                    }
+                                }
+                            });
+                    });
+
+                    ui.add_space(4.0);
+                }
+
+                // Character panel setting
                 ui.horizontal(|ui| {
                     ui.label("Character panel:");
                     if ui
@@ -84,23 +127,28 @@ pub fn render_settings(
 
             // Save files section
             ui.collapsing(egui::RichText::new("Save Files").strong(), |ui| {
-                ui.label("Save directory: saves/");
-                ui.label("Character saves: saves/characters/");
+                ui.label(format!("Save directory: {}/", saves_path));
+                ui.label(format!("Character saves: {}/characters/", saves_path));
 
                 ui.add_space(4.0);
 
                 if ui.button("Open saves folder").clicked() {
+                    app_state.play_click();
                     #[cfg(target_os = "macos")]
                     {
-                        let _ = std::process::Command::new("open").arg("saves").spawn();
+                        let _ = std::process::Command::new("open").arg(saves_path).spawn();
                     }
                     #[cfg(target_os = "windows")]
                     {
-                        let _ = std::process::Command::new("explorer").arg("saves").spawn();
+                        let _ = std::process::Command::new("explorer")
+                            .arg(saves_path)
+                            .spawn();
                     }
                     #[cfg(target_os = "linux")]
                     {
-                        let _ = std::process::Command::new("xdg-open").arg("saves").spawn();
+                        let _ = std::process::Command::new("xdg-open")
+                            .arg(saves_path)
+                            .spawn();
                     }
                 }
             });

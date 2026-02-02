@@ -9,5 +9,6 @@ mod plugin;
 mod settings;
 
 pub use effect::SoundEffect;
+pub use persistence::load_settings;
 pub use plugin::SoundPlugin;
 pub use settings::SoundSettings;

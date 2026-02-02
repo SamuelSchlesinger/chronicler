@@ -1,0 +1,10 @@
+# D&D AI Configuration
+# Run the application from the workspace root directory
+
+[paths]
+# Path to assets directory (relative to where Bevy resolves assets from)
+# When running with cargo, this is relative to the crate directory (dnd-bevy/)
+asset_path = "assets"
+
+# Path to saves directory, relative to where the application is run from
+saves_path = "saves"

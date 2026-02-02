@@ -13,6 +13,8 @@ use crate::state::{
     ActiveOverlay, AppState, CharacterSaveList, GamePhase, GameSaveInfo, GameSaveList,
     OnboardingState, PendingCharacterList, PendingGameList, PendingGameLoad,
 };
+use crate::window::WindowSettings;
+use crate::AppConfig;
 
 /// Main UI system - renders all egui panels.
 #[allow(clippy::too_many_arguments)]
@@ -27,6 +29,8 @@ pub fn main_ui_system(
     mut game_save_list: Option<ResMut<GameSaveList>>,
     mut onboarding: ResMut<OnboardingState>,
     mut sound_settings: ResMut<SoundSettings>,
+    mut window_settings: ResMut<WindowSettings>,
+    config: Res<AppConfig>,
     time: Res<Time>,
 ) {
     let ctx = contexts.ctx_mut();
@@ -49,7 +53,13 @@ pub fn main_ui_system(
                     overlays::render_onboarding(ctx, &mut onboarding, &mut app_state);
                 }
                 ActiveOverlay::Settings => {
-                    overlays::render_settings(ctx, &mut app_state, Some(sound_settings.as_mut()));
+                    overlays::render_settings(
+                        ctx,
+                        &mut app_state,
+                        Some(sound_settings.as_mut()),
+                        Some(window_settings.as_mut()),
+                        &config.saves_path,
+                    );
                 }
                 ActiveOverlay::LoadCharacter => {
                     if let Some(ref mut list) = char_save_list {
@@ -57,9 +67,10 @@ pub fn main_ui_system(
                         if !list.loaded && !list.loading && list.error.is_none() {
                             list.loading = true;
                             let (tx, rx) = std::sync::mpsc::channel();
+                            let characters_path = config.characters_path();
                             std::thread::spawn(move || {
                                 let result = crate::runtime::RUNTIME.block_on(
-                                    dnd_core::persist::list_character_saves("saves/characters"),
+                                    dnd_core::persist::list_character_saves(&characters_path),
                                 );
                                 let _ = tx.send(result);
                             });
@@ -88,9 +99,10 @@ pub fn main_ui_system(
                         if !list.loaded && !list.loading && list.error.is_none() {
                             list.loading = true;
                             let (tx, rx) = std::sync::mpsc::channel();
+                            let saves_path = config.saves_path.clone();
                             std::thread::spawn(move || {
                                 let result =
-                                    crate::runtime::RUNTIME.block_on(list_game_saves("saves"));
+                                    crate::runtime::RUNTIME.block_on(list_game_saves(&saves_path));
                                 let _ = tx.send(result);
                             });
 
@@ -133,6 +145,7 @@ pub fn main_ui_system(
                     &mut next_phase,
                     &mut app_state,
                     &mut commands,
+                    &config.saves_path,
                 );
             }
         }
@@ -140,7 +153,7 @@ pub fn main_ui_system(
             // Render panels in correct order for egui layout:
             // 1. Top/bottom panels and side panels first (they claim space)
             // 2. CentralPanel last (fills remaining space)
-            panels::render_top_bar(ctx, &mut app_state);
+            panels::render_top_bar(ctx, &mut app_state, &config.saves_path);
             panels::render_character_panel(ctx, &mut app_state);
             input::render_input_panel(ctx, &mut app_state);
             // CentralPanel must come after side/top/bottom panels
@@ -158,8 +171,13 @@ pub fn main_ui_system(
                 ActiveOverlay::QuestLog => overlays::render_quest_log(ctx, &app_state),
                 ActiveOverlay::Help => overlays::render_help(ctx),
                 ActiveOverlay::Settings => {
-                    if overlays::render_settings(ctx, &mut app_state, Some(sound_settings.as_mut()))
-                    {
+                    if overlays::render_settings(
+                        ctx,
+                        &mut app_state,
+                        Some(sound_settings.as_mut()),
+                        Some(window_settings.as_mut()),
+                        &config.saves_path,
+                    ) {
                         // User clicked "Return to Main Menu"
                         next_phase.set(GamePhase::MainMenu);
                     }
@@ -250,6 +268,7 @@ fn render_error_popup(ctx: &egui::Context, app_state: &mut AppState) {
                 }
                 ui.add_space(10.0);
                 if ui.button("OK").clicked() {
+                    app_state.play_click();
                     app_state.error_message = None;
                 }
             });
@@ -265,6 +284,7 @@ pub fn handle_keyboard_input(
     keys: Res<ButtonInput<KeyCode>>,
     mut app_state: ResMut<AppState>,
     game_phase: Res<State<GamePhase>>,
+    config: Res<AppConfig>,
     mut contexts: EguiContexts,
 ) {
     let ctx = contexts.ctx_mut();
@@ -298,7 +318,10 @@ pub fn handle_keyboard_input(
         && app_state.has_session()
     {
         if let Some(tx) = &app_state.request_tx {
-            let path = dnd_core::persist::auto_save_path("saves", &app_state.world.campaign_name);
+            let path = dnd_core::persist::auto_save_path(
+                &config.saves_path,
+                &app_state.world.campaign_name,
+            );
             let _ = tx.try_send(crate::state::WorkerRequest::Save(path));
             app_state.is_saving = true;
             app_state.set_status_persistent("Saving...");

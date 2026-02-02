@@ -38,6 +38,9 @@ rand = "0.8"
 # Environment
 dotenvy = "0.15"
 
+# Config
+toml = "0.8"
+
 [features]
 default = []
 

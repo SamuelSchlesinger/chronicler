@@ -124,7 +124,10 @@ pub fn check_pending_game_list(
     };
 
     let result = {
-        let receiver = pending.receiver.lock().unwrap();
+        let receiver = pending
+            .receiver
+            .lock()
+            .expect("game list receiver mutex poisoned");
         receiver.try_recv()
     };
 
@@ -161,7 +164,10 @@ pub fn check_pending_game_load(
     let Some(pending) = pending else { return };
 
     let result = {
-        let receiver = pending.receiver.lock().unwrap();
+        let receiver = pending
+            .receiver
+            .lock()
+            .expect("game load receiver mutex poisoned");
         receiver.try_recv()
     };
 
@@ -203,7 +209,10 @@ pub fn check_pending_character_list(
     };
 
     let result = {
-        let receiver = pending.receiver.lock().unwrap();
+        let receiver = pending
+            .receiver
+            .lock()
+            .expect("character list receiver mutex poisoned");
         receiver.try_recv()
     };
 
@@ -242,7 +251,10 @@ pub fn check_pending_session(
 
     // Try to receive without blocking
     let result = {
-        let receiver = pending.receiver.lock().unwrap();
+        let receiver = pending
+            .receiver
+            .lock()
+            .expect("session receiver mutex poisoned");
         receiver.try_recv()
     };
 

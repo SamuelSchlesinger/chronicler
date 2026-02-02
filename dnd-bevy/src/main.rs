@@ -15,9 +15,35 @@ mod runtime;
 mod sound;
 mod state;
 mod ui;
+mod window;
 
 use bevy::prelude::*;
 use bevy_egui::EguiPlugin;
+use serde::Deserialize;
+
+/// Application configuration loaded from config.toml
+#[derive(Deserialize)]
+struct ConfigFile {
+    paths: PathsConfig,
+}
+
+#[derive(Deserialize, Clone)]
+struct PathsConfig {
+    asset_path: String,
+    saves_path: String,
+}
+
+/// Runtime configuration resource available throughout the app
+#[derive(Resource, Clone)]
+pub struct AppConfig {
+    pub saves_path: String,
+}
+
+impl AppConfig {
+    pub fn characters_path(&self) -> String {
+        format!("{}/characters", self.saves_path)
+    }
+}
 
 use crate::character_creation::{CharacterCreation, ReadyToStart};
 use crate::state::{
@@ -29,18 +55,30 @@ fn main() {
     // Load .env file if present
     dotenvy::dotenv().ok();
 
-    // Create saves directories if they don't exist
-    std::fs::create_dir_all("saves").ok();
-    std::fs::create_dir_all("saves/characters").ok();
+    // Load configuration from config.toml
+    let config: ConfigFile = std::fs::read_to_string("config.toml")
+        .map_err(|e| format!("Failed to read config.toml: {e}"))
+        .and_then(|s| toml::from_str(&s).map_err(|e| format!("Failed to parse config.toml: {e}")))
+        .expect("config.toml must exist and be valid. Run from workspace root.");
 
-    // Determine asset path - check if we're in dnd-bevy/ or workspace root
-    let asset_path = if std::path::Path::new("assets/sounds").exists() {
-        "assets".to_string()
-    } else if std::path::Path::new("dnd-bevy/assets/sounds").exists() {
-        "dnd-bevy/assets".to_string()
-    } else {
-        "assets".to_string() // fallback
+    let asset_path = config.paths.asset_path;
+    let saves_path = config.paths.saves_path.clone();
+
+    // Create saves directories if they don't exist
+    std::fs::create_dir_all(&saves_path).ok();
+    std::fs::create_dir_all(format!("{}/characters", &saves_path)).ok();
+
+    let app_config = AppConfig {
+        saves_path: saves_path.clone(),
     };
+
+    // Load settings from disk
+    let window_settings = window::load_settings(&saves_path);
+    let sound_settings = sound::load_settings(&saves_path);
+    let onboarding_state = OnboardingState::load(&saves_path);
+
+    // Always use windowed mode (fullscreen disabled due to macOS issues)
+    let initial_window_mode = bevy::window::WindowMode::Windowed;
 
     App::new()
         .add_plugins(
@@ -48,8 +86,9 @@ fn main() {
                 .set(WindowPlugin {
                     primary_window: Some(Window {
                         title: "D&D: AI Dungeon Master".into(),
-                        resolution: (1280., 800.).into(),
+                        resolution: (window_settings.width, window_settings.height).into(),
                         resizable: true,
+                        mode: initial_window_mode,
                         ..default()
                     }),
                     ..default()
@@ -61,12 +100,16 @@ fn main() {
         )
         .add_plugins(EguiPlugin)
         .add_plugins(sound::SoundPlugin)
+        .add_plugins(window::WindowSettingsPlugin)
+        .insert_resource(app_config)
+        .insert_resource(window_settings)
+        .insert_resource(sound_settings)
+        .insert_resource(onboarding_state)
         // App state
         .init_state::<GamePhase>()
         .init_resource::<AppState>()
         .init_resource::<CharacterSaveList>()
         .init_resource::<GameSaveList>()
-        .insert_resource(OnboardingState::load())
         // Startup systems
         .add_systems(Startup, setup)
         // State transition systems

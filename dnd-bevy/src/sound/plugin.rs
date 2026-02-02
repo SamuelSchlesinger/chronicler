@@ -4,16 +4,17 @@ use bevy::prelude::*;
 
 use super::assets::SoundAssets;
 use super::effect::SoundEffect;
-use super::persistence::{load_settings, save_settings};
+use super::persistence::save_settings;
 use super::settings::SoundSettings;
+use crate::AppConfig;
 
 /// Plugin to add sound functionality.
 pub struct SoundPlugin;
 
 impl Plugin for SoundPlugin {
     fn build(&self, app: &mut App) {
+        // Note: SoundSettings is inserted by main() after loading from disk
         app.init_resource::<SoundAssets>()
-            .insert_resource(load_settings())
             .add_event::<SoundEffect>()
             .add_systems(Startup, load_sounds)
             .add_systems(Update, (play_sounds, auto_save_settings));
@@ -21,9 +22,9 @@ impl Plugin for SoundPlugin {
 }
 
 /// Auto-save sound settings when changed.
-fn auto_save_settings(mut settings: ResMut<SoundSettings>) {
+fn auto_save_settings(mut settings: ResMut<SoundSettings>, config: Res<AppConfig>) {
     if settings.needs_save() {
-        save_settings(&mut settings);
+        save_settings(&mut settings, &config.saves_path);
     }
 }
 

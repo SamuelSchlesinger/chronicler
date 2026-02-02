@@ -2,11 +2,15 @@
 
 use super::settings::SoundSettings;
 
-const SETTINGS_PATH: &str = "saves/audio_settings.json";
+/// Get the settings file path for the given saves directory.
+fn settings_path(saves_path: &str) -> String {
+    format!("{}/audio_settings.json", saves_path)
+}
 
 /// Load sound settings from disk.
-pub fn load_settings() -> SoundSettings {
-    let path = std::path::Path::new(SETTINGS_PATH);
+pub fn load_settings(saves_path: &str) -> SoundSettings {
+    let path = settings_path(saves_path);
+    let path = std::path::Path::new(&path);
     if path.exists() {
         if let Ok(contents) = std::fs::read_to_string(path) {
             if let Ok(data) = serde_json::from_str::<serde_json::Value>(&contents) {
@@ -27,13 +31,13 @@ pub fn load_settings() -> SoundSettings {
 }
 
 /// Save sound settings to disk.
-pub fn save_settings(settings: &mut SoundSettings) {
+pub fn save_settings(settings: &mut SoundSettings, saves_path: &str) {
     let data = serde_json::json!({
         "volume": settings.volume,
         "enabled": settings.enabled
     });
     if let Ok(contents) = serde_json::to_string_pretty(&data) {
-        let _ = std::fs::write(SETTINGS_PATH, contents);
+        let _ = std::fs::write(settings_path(saves_path), contents);
     }
     settings.clear_changed();
 }
