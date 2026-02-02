@@ -633,19 +633,22 @@ pub fn render_settings(
                     ui.horizontal(|ui| {
                         ui.label("Sound enabled:");
                         if ui.checkbox(&mut sound.enabled, "").changed() {
-                            // Checkbox already mutates sound.enabled
+                            sound.mark_changed();
                         }
                     });
 
                     // Volume slider (only if sound is enabled)
                     ui.horizontal(|ui| {
                         ui.label("Volume:");
-                        ui.add_enabled(
+                        let slider_response = ui.add_enabled(
                             sound.enabled,
                             egui::Slider::new(&mut sound.volume, 0.0..=1.0)
                                 .show_value(false)
                                 .clamping(egui::SliderClamping::Always),
                         );
+                        if slider_response.changed() {
+                            sound.mark_changed();
+                        }
                         ui.label(format!("{}%", (sound.volume * 100.0) as i32));
                     });
                 } else {

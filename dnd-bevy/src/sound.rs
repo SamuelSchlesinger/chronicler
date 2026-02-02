@@ -54,6 +54,8 @@ pub struct SoundSettings {
     pub volume: f32,
     /// Whether sound is enabled
     pub enabled: bool,
+    /// Track if settings changed (for auto-save)
+    changed: bool,
 }
 
 impl Default for SoundSettings {
@@ -61,7 +63,58 @@ impl Default for SoundSettings {
         Self {
             volume: 0.7,
             enabled: true,
+            changed: false,
         }
+    }
+}
+
+impl SoundSettings {
+    /// Load sound settings from disk.
+    pub fn load() -> Self {
+        let path = std::path::Path::new("saves/audio_settings.json");
+        if path.exists() {
+            if let Ok(contents) = std::fs::read_to_string(path) {
+                if let Ok(data) = serde_json::from_str::<serde_json::Value>(&contents) {
+                    let volume = data
+                        .get("volume")
+                        .and_then(|v| v.as_f64())
+                        .map(|v| v as f32)
+                        .unwrap_or(0.7);
+                    let enabled = data
+                        .get("enabled")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(true);
+                    return Self {
+                        volume: volume.clamp(0.0, 1.0),
+                        enabled,
+                        changed: false,
+                    };
+                }
+            }
+        }
+        Self::default()
+    }
+
+    /// Save sound settings to disk.
+    pub fn save(&mut self) {
+        let data = serde_json::json!({
+            "volume": self.volume,
+            "enabled": self.enabled
+        });
+        if let Ok(contents) = serde_json::to_string_pretty(&data) {
+            let _ = std::fs::write("saves/audio_settings.json", contents);
+        }
+        self.changed = false;
+    }
+
+    /// Mark settings as changed (will trigger auto-save).
+    pub fn mark_changed(&mut self) {
+        self.changed = true;
+    }
+
+    /// Check if settings need saving.
+    pub fn needs_save(&self) -> bool {
+        self.changed
     }
 }
 
@@ -71,10 +124,17 @@ pub struct SoundPlugin;
 impl Plugin for SoundPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SoundAssets>()
-            .init_resource::<SoundSettings>()
+            .insert_resource(SoundSettings::load())
             .add_event::<SoundEffect>()
             .add_systems(Startup, load_sounds)
-            .add_systems(Update, play_sounds);
+            .add_systems(Update, (play_sounds, auto_save_settings));
+    }
+}
+
+/// Auto-save sound settings when changed.
+fn auto_save_settings(mut settings: ResMut<SoundSettings>) {
+    if settings.needs_save() {
+        settings.save();
     }
 }
 
