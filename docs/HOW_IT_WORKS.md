@@ -61,6 +61,75 @@ These facts are stored in your save file. When you mention "Mira" or visit "The 
 
 The result: NPCs remember you. Consequences resurface. The world feels consistent even across multiple play sessions.
 
+### Importance Decay
+
+Not all memories are equal. Recent events and dramatic moments have high importance; minor details fade over time. Facts decay 2% per turn, so the AI naturally forgets that you bought a torch three sessions ago while remembering that you betrayed the Baron.
+
+Only the 30 most important facts enter the AI's context at any time. This keeps responses fast while preserving what matters.
+
+## World Building
+
+The DM doesn't just react to your actions—it builds a living world around you.
+
+### Creating NPCs and Locations
+
+When you enter a new area or meet someone interesting, the DM uses specialized tools to register them:
+
+```
+create_npc(
+  name: "Captain Voss",
+  description: "Weathered sailor with a missing eye and salt-crusted coat",
+  personality: "Boastful, superstitious, fiercely loyal to his crew",
+  disposition: "neutral",
+  location: "The Salty Dog Tavern",
+  known_information: ["has seen the ghost ship", "knows secret cove location"]
+)
+```
+
+This NPC now exists in the world. If you leave and return 10 sessions later, Captain Voss will still be at The Salty Dog, still missing an eye, still knowing about that ghost ship.
+
+### The Consequence System
+
+The DM can plant story seeds that bloom later:
+
+```
+register_consequence(
+  trigger: "player mentions the ghost ship to a sailor",
+  description: "Captain Voss overhears and approaches, offering information for a price",
+  severity: "moderate"
+)
+```
+
+Now the DM doesn't have to remember this setup. When you eventually ask a dockhand about ghost ships, a **relevance checker** matches your action against registered consequences and surfaces it automatically.
+
+This enables:
+- **Revenge plots** — spare an enemy, they might return
+- **Reputation effects** — help the village, they remember
+- **Ticking clocks** — ignore the cultists too long, consequences arrive
+- **Secrets revealed** — the right question to the right person unlocks hidden information
+
+### The Flow
+
+Here's what happens every time you act:
+
+```
+Your Action
+    ↓
+Relevance Checker ← "Does this trigger any registered consequences?"
+    ↓
+System Prompt Built ← Base DM + Rules + Your Character + Relevant Memories
+    ↓
+AI Generates Response ← Narrative text + Tool calls
+    ↓
+Tools Execute ← Dice rolls, damage, NPC creation, fact storage
+    ↓
+World Updates ← Game state changes persist
+    ↓
+You See the Result
+```
+
+The AI handles creativity. The rules engine handles consistency. The memory system handles persistence. Together, they create something that feels like a real campaign.
+
 ## Key Design Decisions
 
 ### Act Decisively

@@ -516,6 +516,148 @@ This gives cinematic pacing—player acts, sees consequences unfold, acts again.
 
 ---
 
+## World Building System
+
+The world building system enables the AI to create and manage a persistent, evolving game world through specialized tools and memory systems.
+
+### World Building Flow
+
+```
+┌──────────────┐
+│ Player Input │
+└──────┬───────┘
+       │
+       ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                    RELEVANCE CHECKER (Fast Model)                        │
+│  • Checks registered consequences against player action                  │
+│  • Surfaces relevant NPCs/locations not explicitly mentioned             │
+│  • Retrieves key facts from story memory                                 │
+└──────────────────────────────────────┬───────────────────────────────────┘
+                                       │
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                      SYSTEM PROMPT COMPOSITION                           │
+│  dm_base.txt + story_memory.txt + world_building.txt + ...               │
+│  + Campaign context + Character info + Triggered consequences            │
+└──────────────────────────────────────┬───────────────────────────────────┘
+                                       │
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                      CLAUDE API (Tool Loop)                              │
+│           Generates narrative + tool calls (streaming)                   │
+└──────────────────────────────────────┬───────────────────────────────────┘
+                                       │
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                        TOOL PARSING LAYER                                │
+│              Tool Call JSON  →  Intent (typed struct)                    │
+└──────────────────────────────────────┬───────────────────────────────────┘
+                                       │
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          RULES ENGINE                                    │
+│             Intent  →  Resolution (Narrative + Effects)                  │
+└──────────────────────────────────────┬───────────────────────────────────┘
+                                       │
+              ┌────────────────────────┼────────────────────────┐
+              ▼                        ▼                        ▼
+┌─────────────────────┐   ┌─────────────────────┐   ┌─────────────────────┐
+│     GAME WORLD      │   │    STORY MEMORY     │   │   TOOL RESULT       │
+│  npcs, locations,   │   │  facts, relations,  │   │  (back to Claude    │
+│  quests, log        │   │  consequences       │   │   for next turn)    │
+└─────────────────────┘   └─────────────────────┘   └─────────────────────┘
+```
+
+### World Building Tools
+
+The DM has access to 17 specialized world building tools:
+
+| Domain | Tools | Purpose |
+|--------|-------|---------|
+| **NPC Management** | `create_npc`, `update_npc`, `move_npc`, `remove_npc` | Introduce and manage non-player characters with personality, disposition, and knowledge |
+| **Location Management** | `create_location`, `connect_locations`, `update_location` | Build navigable world with nested locations and travel connections |
+| **Story Memory** | `remember_fact`, `register_consequence` | Record important facts and set up triggered future events |
+| **Quest Management** | `create_quest`, `add_quest_objective`, `complete_objective`, `complete_quest`, `fail_quest` | Track missions with objectives and rewards |
+| **Time & Events** | `schedule_event`, `check_schedule` | Time-based story triggers |
+| **State** | `assert_state` | Declarative state changes |
+
+### Story Memory Architecture
+
+```rust
+pub struct StoryMemory {
+    entities: HashMap<EntityId, Entity>,     // NPCs, locations, items, etc.
+    name_index: HashMap<String, EntityId>,   // Case-insensitive lookup
+    facts: Vec<StoryFact>,                   // Important narrative facts
+    relationships: Vec<Relationship>,         // Entity connections
+    consequences: Vec<Consequence>,           // Triggered events
+    knowledge: Vec<KnowledgeEntry>,          // Asymmetric info (who knows what)
+    scheduled_events: Vec<ScheduledEvent>,   // Time-based triggers
+}
+```
+
+**Entity Types:** `Npc`, `Location`, `Item`, `Quest`, `Organization`, `Event`, `Creature`
+
+**Fact Categories:** `appearance`, `personality`, `event`, `relationship`, `backstory`, `motivation`, `capability`, `location`, `possession`, `status`, `secret`
+
+### Importance Decay
+
+Facts and consequences decay over time to manage context window:
+
+- **Facts:** 2% decay per turn (1% for stable categories like `location`)
+- **Consequences:** 1% decay per turn
+- **Entities:** Reset when mentioned, decay when idle
+
+Only the top 30 most important facts are included in context. This naturally surfaces recent and high-importance information while older details fade.
+
+### Consequence System
+
+Consequences enable reactive storytelling:
+
+```rust
+// DM registers a consequence
+register_consequence(
+    trigger: "player returns to the village",
+    description: "The villagers have organized a celebration in the hero's honor",
+    severity: "moderate",
+    related_entities: ["Millbrook Village", "Elder Thom"],
+    importance: 0.8
+)
+
+// Later, when player says "I head back to the village"
+// Relevance checker detects match → consequence triggers → added to context
+```
+
+This lets the DM plant story seeds that bloom naturally based on player actions.
+
+### NPC Creation Example
+
+Complete data flow for `create_npc`:
+
+1. **Claude generates tool call:**
+   ```json
+   { "name": "create_npc", "input": {
+       "name": "Mira the Innkeeper",
+       "description": "A stout dwarf with a braided red beard",
+       "personality": "Gruff but secretly kind-hearted",
+       "disposition": "neutral",
+       "location": "The Rusty Tankard",
+       "known_information": ["knows about bandits on the north road"]
+   }}
+   ```
+
+2. **Tool parsing** creates `Intent::CreateNpc { ... }`
+
+3. **Rules engine** resolves to `Effect::NpcCreated { name, location }`
+
+4. **Effect applied** to `GameWorld.npcs` HashMap
+
+5. **Tool result** returned to Claude: "NPC Mira the Innkeeper enters the world"
+
+6. **Claude continues** narrative or calls more tools
+
+---
+
 ## Token Efficiency Notes
 
 The redesign prioritizes smaller code:
