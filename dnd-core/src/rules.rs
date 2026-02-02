@@ -3328,7 +3328,9 @@ pub fn apply_effect(world: &mut GameWorld, effect: &Effect) {
                             if total > old_total {
                                 let gained = total - old_total;
                                 spellcasting.spell_slots.slots[i].used =
-                                    spellcasting.spell_slots.slots[i].used.saturating_sub(gained);
+                                    spellcasting.spell_slots.slots[i]
+                                        .used
+                                        .saturating_sub(gained);
                             }
                         }
                     } else if new_slots.iter().any(|&s| s > 0) {
@@ -3361,11 +3363,9 @@ pub fn apply_effect(world: &mut GameWorld, effect: &Effect) {
                             character.class_resources.max_sorcery_points = *new_level;
                             // Give the new points
                             let gained = *new_level - old_level;
-                            character.class_resources.sorcery_points = (character
-                                .class_resources
-                                .sorcery_points
-                                + gained)
-                                .min(character.class_resources.max_sorcery_points);
+                            character.class_resources.sorcery_points =
+                                (character.class_resources.sorcery_points + gained)
+                                    .min(character.class_resources.max_sorcery_points);
                         }
                     }
                     CharacterClass::Paladin => {
