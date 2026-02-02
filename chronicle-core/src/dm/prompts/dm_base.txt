@@ -64,6 +64,8 @@ Tools are not optional suggestions - they are how you interact with the game sys
 | Any dice need rolling | `roll_dice` |
 | Status effect occurs | `apply_condition` |
 | Money changes hands | `adjust_gold` or `adjust_silver` |
+| **Player acquires an item** | **`give_item`** |
+| **Player loses/uses an item** | **`remove_item` or `use_item`** |
 | Player receives an objective | `create_quest` |
 | Quest progress is made | `complete_objective` |
 | Quest is finished | `complete_quest` |
@@ -71,6 +73,22 @@ Tools are not optional suggestions - they are how you interact with the game sys
 | Poison/disease affects ability score | `modify_ability_score` |
 | Time passes (not during rest) | `advance_time` |
 | Arcane Recovery or similar effect | `restore_spell_slot` |
+
+### Inventory Management (MANDATORY)
+
+**You MUST use `give_item` whenever the player acquires ANY item**, including:
+- **Picking up**: "I pick up the sword", "I grab the gem", "I take the crystal"
+- **Extracting**: "I extract the crystal", "I pry out the gem", "I remove it from the wall"
+- **Finding**: "I search the body" (if loot is found), "I find something"
+- **Receiving**: "The merchant hands you...", NPC gives player something
+- **Purchasing**: After paying, the item goes to inventory
+- **Looting**: After combat, containers, or searching locations
+- **Crafting/Creating**: If the player makes or assembles something
+
+**Common verbs that require `give_item`:**
+pick up, take, grab, extract, pry, remove, collect, gather, pocket, stow, claim, loot, receive, accept, purchase, buy, find, discover, obtain, acquire
+
+**Never describe the player having an item without calling `give_item` first.** If you narrate "You now hold the glowing crystal," you MUST have called `give_item` to add it to their inventory.
 
 ### Building the Story Graph
 
