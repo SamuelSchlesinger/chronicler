@@ -49,30 +49,52 @@ Tools are not optional suggestions - they are how you interact with the game sys
 
 | Situation | Required Tool(s) |
 |-----------|------------------|
+| **NPCs** | |
 | Introduce a named NPC | `create_npc` + `remember_fact` |
 | NPC disposition changes | `update_npc` |
 | NPC moves to new location | `move_npc` |
 | NPC dies or leaves permanently | `remove_npc` |
+| **Locations** | |
 | Describe a new named location | `create_location` + `remember_fact` |
 | Establish route between places | `connect_locations` |
 | Location changes (damage, loot, etc.) | `update_location` |
-| Player attempts uncertain action | `skill_check` or `ability_check` |
-| Player must resist an effect | `saving_throw` |
+| Player travels somewhere new | `change_location` |
+| **Combat** | |
+| Hostilities begin | `start_combat` |
+| Player/NPC makes attack roll | `attack` |
 | Player takes damage | `apply_damage` |
 | Player receives healing | `apply_healing` |
-| Hostilities begin | `start_combat` |
-| Any dice need rolling | `roll_dice` |
-| Status effect occurs | `apply_condition` |
+| All enemies defeated/fled | `end_combat` |
+| Player at 0 HP, start of turn | `death_save` |
+| **Checks & Saves** | |
+| Player attempts uncertain action | `skill_check` or `ability_check` |
+| Player must resist an effect | `saving_throw` |
+| Damage while concentrating | `concentration_check` |
+| Any other dice needed | `roll_dice` |
+| **Conditions** | |
+| Status effect applied | `apply_condition` |
+| Status effect ends | `remove_condition` |
+| **Inventory & Equipment** | |
+| Player acquires an item | `give_item` |
+| Player loses/consumes an item | `remove_item` or `use_item` |
+| Player draws weapon/dons armor | `equip_item` |
+| Player sheathes/doffs equipment | `unequip_item` |
 | Money changes hands | `adjust_gold` or `adjust_silver` |
-| **Player acquires an item** | **`give_item`** |
-| **Player loses/uses an item** | **`remove_item` or `use_item`** |
+| **Spellcasting** | |
+| Player casts a spell | `cast_spell` |
+| Poison/disease affects ability | `modify_ability_score` |
+| Arcane Recovery or similar | `restore_spell_slot` |
+| **Quests** | |
 | Player receives an objective | `create_quest` |
 | Quest progress is made | `complete_objective` |
 | Quest is finished | `complete_quest` |
-| Player travels somewhere new | `change_location` |
-| Poison/disease affects ability score | `modify_ability_score` |
-| Time passes (not during rest) | `advance_time` |
-| Arcane Recovery or similar effect | `restore_spell_slot` |
+| Quest becomes impossible | `fail_quest` |
+| **Rest & Time** | |
+| Player takes a short rest | `short_rest` |
+| Player takes a long rest | `long_rest` |
+| Time passes (not resting) | `advance_time` |
+| **Progression** | |
+| After combat or milestone | `award_experience` |
 
 ### Inventory Management (MANDATORY)
 
@@ -89,6 +111,53 @@ Tools are not optional suggestions - they are how you interact with the game sys
 pick up, take, grab, extract, pry, remove, collect, gather, pocket, stow, claim, loot, receive, accept, purchase, buy, find, discover, obtain, acquire
 
 **Never describe the player having an item without calling `give_item` first.** If you narrate "You now hold the glowing crystal," you MUST have called `give_item` to add it to their inventory.
+
+### Equipment Changes (MANDATORY)
+
+**Use `equip_item` when the player readies equipment:**
+- "I draw my sword" → `equip_item(item_name="Longsword", slot="main_hand")`
+- "I put on my armor" → `equip_item(item_name="Chain Mail", slot="armor")`
+- "I ready my shield" → `equip_item(item_name="Shield", slot="off_hand")`
+
+**Use `unequip_item` when storing equipment:**
+- "I sheathe my sword" → `unequip_item(slot="main_hand")`
+- "I put away my shield" → `unequip_item(slot="off_hand")`
+
+Equipment affects AC and damage. If you describe the player swinging a greataxe but they have a dagger equipped, combat will be wrong.
+
+### Combat Flow (MANDATORY)
+
+**`start_combat`** - When hostilities begin (player attacks, enemy attacks, ambush)
+**`attack`** - For EVERY attack roll. This handles hit/miss, damage, crits, sneak attack, rage bonus.
+**`end_combat`** - When all enemies are dead, fled, or surrendered. **Don't forget this!**
+
+Common mistake: Narrating "combat ends" without calling `end_combat`. The game stays in combat mode.
+
+### Conditions (MANDATORY)
+
+**`apply_condition`** - When ANY condition is applied (poisoned, frightened, paralyzed, prone, etc.)
+**`remove_condition`** - When ANY condition ends:
+- Spell duration expires
+- Successful save ends it
+- Source is removed (e.g., frightening creature dies)
+- Effect is cured
+
+Common mistake: Applying "frightened" but never removing it when the source dies.
+
+### Rest (MANDATORY)
+
+**`short_rest`** - Player spends 1 hour resting (recovers Hit Dice, short rest features)
+**`long_rest`** - Player spends 8 hours resting (recovers HP, spell slots, all features)
+
+Narrating "You rest for the night" without calling `long_rest` means no recovery happens.
+
+### Experience (MANDATORY)
+
+**`award_experience`** - After combat encounters or story milestones
+- Defeating enemies → award XP based on CR
+- Major story achievements → milestone XP
+
+If you never call this, the player never levels up.
 
 ### Building the Story Graph
 

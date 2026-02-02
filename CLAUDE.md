@@ -47,6 +47,18 @@ cargo run -p claude --example tool_use
 cargo run -p chronicle
 ```
 
+## Pre-Commit Requirements
+
+**Before committing any changes, ALL of these must pass:**
+
+```bash
+cargo fmt --all          # Format code
+cargo clippy --workspace # Lint check (must have no warnings)
+cargo test --workspace   # All tests must pass
+```
+
+**Do not commit if any of these fail.** Fix issues before committing.
+
 ## Workspace Structure
 
 This workspace contains 4 crates:
