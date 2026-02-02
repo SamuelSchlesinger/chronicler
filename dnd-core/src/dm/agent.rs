@@ -315,10 +315,31 @@ impl DungeonMaster {
         &mut self,
         player_input: &str,
         world: &mut GameWorld,
-        mut on_text: F,
+        on_text: F,
     ) -> Result<DmResponse, DmError>
     where
         F: FnMut(&str) + Send,
+    {
+        // Delegate to the version with effects callback, using a no-op for effects
+        self.process_input_streaming_with_effects(player_input, world, on_text, |_| {})
+            .await
+    }
+
+    /// Process player input with streaming callbacks for both text and effects.
+    ///
+    /// The `on_text` callback is invoked with each text chunk as it arrives.
+    /// The `on_effect` callback is invoked immediately when effects are generated,
+    /// allowing real-time sound and animation triggering.
+    pub async fn process_input_streaming_with_effects<F, E>(
+        &mut self,
+        player_input: &str,
+        world: &mut GameWorld,
+        mut on_text: F,
+        mut on_effect: E,
+    ) -> Result<DmResponse, DmError>
+    where
+        F: FnMut(&str) + Send,
+        E: FnMut(&Effect) + Send,
     {
         // Advance story turn
         self.story_memory.advance_turn();
@@ -532,6 +553,11 @@ impl DungeonMaster {
                             }
                             _ => {}
                         }
+                    }
+
+                    // Stream effects in real-time for immediate sound/animation
+                    for effect in &resolution.effects {
+                        on_effect(effect);
                     }
 
                     // Store for response

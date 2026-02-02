@@ -284,9 +284,28 @@ impl GameSession {
     where
         F: FnMut(&str) + Send,
     {
+        self.player_action_streaming_with_effects(input, on_text, |_| {})
+            .await
+    }
+
+    /// Process a player action with streaming callbacks for both text and effects.
+    ///
+    /// The `on_text` callback is invoked with each text chunk as it arrives.
+    /// The `on_effect` callback is invoked immediately when effects are generated,
+    /// allowing real-time sound and animation triggering synchronized with the narrative.
+    pub async fn player_action_streaming_with_effects<F, E>(
+        &mut self,
+        input: &str,
+        on_text: F,
+        on_effect: E,
+    ) -> Result<Response, SessionError>
+    where
+        F: FnMut(&str) + Send,
+        E: FnMut(&Effect) + Send,
+    {
         let dm_response = self
             .dm
-            .process_input_streaming(input, &mut self.world, on_text)
+            .process_input_streaming_with_effects(input, &mut self.world, on_text, on_effect)
             .await?;
 
         let in_combat = self.world.combat.is_some();
