@@ -22,7 +22,7 @@ pub enum DmError {
     #[error("Claude API error: {0:?}")]
     ApiError(#[from] claude::Error),
 
-    #[error("No API key configured")]
+    #[error("No API key configured - set ANTHROPIC_API_KEY environment variable")]
     NoApiKey,
 
     #[error("Tool execution failed: {0}")]
@@ -43,6 +43,16 @@ pub struct DmConfig {
 
     /// System prompt customization.
     pub custom_system_prompt: Option<String>,
+
+    /// Whether to defer effect application until the end of streaming.
+    ///
+    /// When `false` (default), effects are applied immediately as each tool is processed.
+    /// This enables real-time feedback but means partial effects may be applied if
+    /// the stream errors mid-way.
+    ///
+    /// When `true`, all effects are collected during streaming and applied atomically
+    /// at the end. This ensures all-or-nothing behavior but delays effect callbacks.
+    pub deferred_effects: bool,
 }
 
 impl Default for DmConfig {
@@ -52,6 +62,7 @@ impl Default for DmConfig {
             max_tokens: 4096,
             temperature: Some(0.8),
             custom_system_prompt: None,
+            deferred_effects: false,
         }
     }
 }
@@ -516,8 +527,10 @@ impl DungeonMaster {
                     // Resolve the intent
                     let resolution = self.rules.resolve(world, intent.clone());
 
-                    // Apply effects to world
-                    apply_effects(world, &resolution.effects);
+                    // Apply effects to world (unless deferred)
+                    if !self.config.deferred_effects {
+                        apply_effects(world, &resolution.effects);
+                    }
 
                     // Handle FactRemembered and ConsequenceRegistered effects specially - store in story memory
                     for effect in &resolution.effects {
@@ -555,9 +568,11 @@ impl DungeonMaster {
                         }
                     }
 
-                    // Stream effects in real-time for immediate sound/animation
-                    for effect in &resolution.effects {
-                        on_effect(effect);
+                    // Stream effects in real-time for immediate sound/animation (unless deferred)
+                    if !self.config.deferred_effects {
+                        for effect in &resolution.effects {
+                            on_effect(effect);
+                        }
                     }
 
                     // Store for response
@@ -585,6 +600,15 @@ impl DungeonMaster {
             });
 
             // Clear tool_uses for next iteration
+        }
+
+        // If effects were deferred, apply them all atomically now that streaming succeeded
+        if self.config.deferred_effects && !all_effects.is_empty() {
+            apply_effects(world, &all_effects);
+            // Stream all effects at once at the end
+            for effect in &all_effects {
+                on_effect(effect);
+            }
         }
 
         // Add DM response to memory
@@ -1045,6 +1069,7 @@ mod tests {
             max_tokens: 2048,
             temperature: Some(0.5),
             custom_system_prompt: Some("Custom prompt".to_string()),
+            ..Default::default()
         };
 
         let _dm = DungeonMaster::new("test-key").with_config(config);

@@ -22,9 +22,6 @@ pub enum SessionError {
 
     #[error("Serialization error: {0}")]
     Serialization(#[from] serde_json::Error),
-
-    #[error("No API key configured - set ANTHROPIC_API_KEY environment variable")]
-    NoApiKey,
 }
 
 /// Configuration for creating a new game session.
@@ -151,11 +148,10 @@ impl GameSession {
             max_tokens: config.max_tokens,
             temperature: config.temperature,
             custom_system_prompt: config.custom_dm_prompt,
+            ..Default::default()
         };
 
-        let dm = DungeonMaster::from_env()
-            .map_err(|_| SessionError::NoApiKey)?
-            .with_config(dm_config);
+        let dm = DungeonMaster::from_env()?.with_config(dm_config);
 
         // Create a sample character
         let character = create_sample_fighter(&config.character_name);
@@ -180,11 +176,10 @@ impl GameSession {
             max_tokens: config.max_tokens,
             temperature: config.temperature,
             custom_system_prompt: config.custom_dm_prompt,
+            ..Default::default()
         };
 
-        let dm = DungeonMaster::from_env()
-            .map_err(|_| SessionError::NoApiKey)?
-            .with_config(dm_config);
+        let dm = DungeonMaster::from_env()?.with_config(dm_config);
 
         let mut world = GameWorld::new(config.campaign_name, character);
 
@@ -206,7 +201,7 @@ impl GameSession {
         let content = fs::read_to_string(path).await?;
         let saved: SavedSession = serde_json::from_str(&content)?;
 
-        let dm = DungeonMaster::from_env().map_err(|_| SessionError::NoApiKey)?;
+        let dm = DungeonMaster::from_env()?;
 
         // Restore memory from saved session
         let mut session = Self {

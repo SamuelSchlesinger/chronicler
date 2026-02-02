@@ -214,6 +214,7 @@ async fn test_dm_registers_consequence_on_hostile_action() {
         max_tokens: 1024,
         temperature: Some(0.7),
         custom_system_prompt: None,
+        ..Default::default()
     });
 
     // Send an action that should provoke a consequence
@@ -435,6 +436,7 @@ async fn test_dm_handles_cantrip_casting() {
         max_tokens: 1024,
         temperature: Some(0.7),
         custom_system_prompt: None,
+        ..Default::default()
     });
 
     // Add an enemy to target
@@ -495,6 +497,7 @@ async fn test_dm_handles_leveled_spell_casting() {
         max_tokens: 1024,
         temperature: Some(0.7),
         custom_system_prompt: None,
+        ..Default::default()
     });
 
     // Add enemies
@@ -564,6 +567,7 @@ async fn test_dm_handles_healing_spell() {
         max_tokens: 1024,
         temperature: Some(0.7),
         custom_system_prompt: None,
+        ..Default::default()
     });
 
     let initial_hp = world.player_character.hit_points.current;
@@ -626,6 +630,7 @@ async fn test_dm_handles_barbarian_rage() {
         max_tokens: 1024,
         temperature: Some(0.7),
         custom_system_prompt: None,
+        ..Default::default()
     });
 
     // Add an enemy to trigger combat context
@@ -682,6 +687,7 @@ async fn test_dm_handles_fighter_action_surge() {
         max_tokens: 1024,
         temperature: Some(0.7),
         custom_system_prompt: None,
+        ..Default::default()
     });
 
     // Add enemies
@@ -740,6 +746,7 @@ async fn test_dm_handles_attack_roll() {
         max_tokens: 1024,
         temperature: Some(0.7),
         custom_system_prompt: None,
+        ..Default::default()
     });
 
     // Add an enemy
@@ -800,6 +807,7 @@ async fn test_dm_handles_skill_check() {
         max_tokens: 1024,
         temperature: Some(0.7),
         custom_system_prompt: None,
+        ..Default::default()
     });
 
     // Request something that should trigger a skill check
@@ -862,6 +870,7 @@ async fn test_dm_handles_short_rest() {
         max_tokens: 1024,
         temperature: Some(0.7),
         custom_system_prompt: None,
+        ..Default::default()
     });
 
     println!(
@@ -931,6 +940,7 @@ async fn test_dm_handles_long_rest_spell_recovery() {
         max_tokens: 1024,
         temperature: Some(0.7),
         custom_system_prompt: None,
+        ..Default::default()
     });
 
     let initial_slots_used = world
@@ -1014,6 +1024,7 @@ async fn test_dm_remembers_context_across_turns() {
         max_tokens: 1024,
         temperature: Some(0.7),
         custom_system_prompt: None,
+        ..Default::default()
     });
 
     // First turn - establish context
