@@ -87,6 +87,12 @@ See the AI Dungeon Master in action:
 - Rust toolchain ([install](https://rustup.rs/))
 - Anthropic API key ([get one](https://console.anthropic.com/))
 
+## System Requirements
+
+- **OS:** macOS, Linux, or Windows
+- **Rust:** Stable toolchain (no minimum version specified)
+- **Network:** Internet connection required for Claude API calls
+
 ## Architecture
 
 ```
