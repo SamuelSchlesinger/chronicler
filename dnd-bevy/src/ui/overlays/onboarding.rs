@@ -30,7 +30,7 @@ pub fn render_onboarding(
                     } else {
                         egui::Color32::DARK_GRAY
                     };
-                    ui.label(egui::RichText::new("●").color(color));
+                    ui.label(egui::RichText::new("o").color(color));
                 }
             });
 
@@ -50,7 +50,7 @@ pub fn render_onboarding(
             // Navigation buttons
             ui.horizontal(|ui| {
                 // Back button (not on first page)
-                if onboarding.current_page > 0 && ui.button("← Back").clicked() {
+                if onboarding.current_page > 0 && ui.button("< Back").clicked() {
                     app_state.play_click();
                     onboarding.current_page -= 1;
                 }
@@ -59,7 +59,7 @@ pub fn render_onboarding(
                     if onboarding.current_page < 2 {
                         if ui
                             .button(
-                                egui::RichText::new("Next →")
+                                egui::RichText::new("Next >")
                                     .color(egui::Color32::from_rgb(218, 165, 32)),
                             )
                             .clicked()
@@ -129,9 +129,9 @@ fn render_onboarding_page_welcome(ui: &mut egui::Ui) {
     ui.group(|ui| {
         ui.label(egui::RichText::new("What is this?").strong());
         ui.add_space(4.0);
-        ui.label("• A solo D&D experience with a real AI running the game");
-        ui.label("• Full D&D 5e rules - dice rolls, combat, spells, and more");
-        ui.label("• Your choices shape the story");
+        ui.label("- A solo D&D experience with a real AI running the game");
+        ui.label("- Full D&D 5e rules - dice rolls, combat, spells, and more");
+        ui.label("- Your choices shape the story");
     });
 
     ui.add_space(10.0);
@@ -139,9 +139,9 @@ fn render_onboarding_page_welcome(ui: &mut egui::Ui) {
     ui.group(|ui| {
         ui.label(egui::RichText::new("What you'll need:").strong());
         ui.add_space(4.0);
-        ui.label("• Your imagination");
-        ui.label("• A willingness to explore");
-        ui.label("• That's it! The AI handles the rules");
+        ui.label("- Your imagination");
+        ui.label("- A willingness to explore");
+        ui.label("- That's it! The AI handles the rules");
     });
 }
 
@@ -191,10 +191,10 @@ fn render_onboarding_page_how_to_play(ui: &mut egui::Ui) {
     ui.group(|ui| {
         ui.label(egui::RichText::new("The AI Dungeon Master will:").strong());
         ui.add_space(4.0);
-        ui.label("• Roll dice automatically when needed");
-        ui.label("• Enforce D&D rules fairly");
-        ui.label("• Describe what happens based on your rolls");
-        ui.label("• Remember important story events");
+        ui.label("- Roll dice automatically when needed");
+        ui.label("- Enforce D&D rules fairly");
+        ui.label("- Describe what happens based on your rolls");
+        ui.label("- Remember important story events");
     });
 }
 
@@ -254,7 +254,7 @@ fn render_onboarding_page_good_to_know(ui: &mut egui::Ui) {
             ui.label(egui::RichText::new("F1").strong());
             ui.label("- Help");
             ui.add_space(20.0);
-            ui.label(egui::RichText::new("↑↓").strong());
+            ui.label(egui::RichText::new("Up/Down").strong());
             ui.label("- Command history");
         });
     });

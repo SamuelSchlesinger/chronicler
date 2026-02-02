@@ -25,11 +25,11 @@ pub fn render_help(ctx: &egui::Context) {
                 ui.add_space(10.0);
 
                 ui.heading("Example Commands");
-                ui.label("• \"I look around the room\"");
-                ui.label("• \"I attack the goblin with my sword\"");
-                ui.label("• \"I try to pick the lock\"");
-                ui.label("• \"I cast fireball at the enemies\"");
-                ui.label("• \"I search the chest\"");
+                ui.label("- \"I look around the room\"");
+                ui.label("- \"I attack the goblin with my sword\"");
+                ui.label("- \"I try to pick the lock\"");
+                ui.label("- \"I cast fireball at the enemies\"");
+                ui.label("- \"I search the chest\"");
                 ui.add_space(10.0);
 
                 ui.heading("Keyboard Shortcuts");
@@ -93,10 +93,10 @@ pub fn render_help(ctx: &egui::Context) {
 
                 ui.add_space(10.0);
                 ui.heading("Tips");
-                ui.label("• Be descriptive - the DM understands natural language");
-                ui.label("• Check your inventory before adventures");
-                ui.label("• Save often using Ctrl+S");
-                ui.label("• Use the quick action buttons for common actions");
+                ui.label("- Be descriptive - the DM understands natural language");
+                ui.label("- Check your inventory before adventures");
+                ui.label("- Save often using Ctrl+S");
+                ui.label("- Use the quick action buttons for common actions");
             });
 
             ui.separator();

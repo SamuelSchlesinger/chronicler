@@ -405,7 +405,7 @@ pub fn render_character_panel(ctx: &egui::Context, app_state: &mut AppState) {
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     // Collapse/expand button
                     let button_text = if app_state.character_panel_expanded {
-                        "−"
+                        "-"
                     } else {
                         "+"
                     };
@@ -633,7 +633,7 @@ pub fn render_character_panel(ctx: &egui::Context, app_state: &mut AppState) {
                                     egui::Color32::LIGHT_GRAY
                                 };
                                 ui.label(
-                                    egui::RichText::new(format!("• {name}"))
+                                    egui::RichText::new(format!("- {name}"))
                                         .color(color)
                                         .small(),
                                 );

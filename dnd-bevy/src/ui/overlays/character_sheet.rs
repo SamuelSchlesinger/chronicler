@@ -193,7 +193,7 @@ pub fn render_character_sheet(ctx: &egui::Context, app_state: &mut AppState) {
                         .strong(),
                         |ui| {
                             for cantrip in &cantrips {
-                                if ui.small_button(format!("• {}", cantrip)).clicked() {
+                                if ui.small_button(format!("- {}", cantrip)).clicked() {
                                     app_state.viewing_spell = Some(cantrip.clone());
                                 }
                             }
@@ -216,7 +216,7 @@ pub fn render_character_sheet(ctx: &egui::Context, app_state: &mut AppState) {
                                 .max_height(150.0)
                                 .show(ui, |ui| {
                                     for spell in &spells {
-                                        if ui.small_button(format!("• {}", spell)).clicked() {
+                                        if ui.small_button(format!("- {}", spell)).clicked() {
                                             app_state.viewing_spell = Some(spell.clone());
                                         }
                                     }
