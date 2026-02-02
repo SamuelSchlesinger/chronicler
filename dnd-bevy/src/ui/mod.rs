@@ -14,6 +14,7 @@ use crate::state::{
 };
 
 /// Main UI system - renders all egui panels.
+#[allow(clippy::too_many_arguments)]
 pub fn main_ui_system(
     mut commands: Commands,
     mut contexts: EguiContexts,

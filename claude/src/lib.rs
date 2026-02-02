@@ -765,13 +765,7 @@ fn parse_sse_events_buffered(buffer: &mut String) -> Vec<Result<StreamEvent, Err
     let mut events = Vec::new();
 
     // Process complete SSE events (terminated by \n\n or at end of valid data lines)
-    loop {
-        // Find the next complete line (ending with \n)
-        let Some(newline_pos) = buffer.find('\n') else {
-            // No complete line yet, wait for more data
-            break;
-        };
-
+    while let Some(newline_pos) = buffer.find('\n') {
         let line = &buffer[..newline_pos];
 
         // Check if this is a data line

@@ -1999,7 +1999,7 @@ impl CombatState {
     pub fn add_combatant(&mut self, combatant: Combatant) {
         self.combatants.push(combatant);
         self.combatants
-            .sort_by(|a, b| b.initiative.cmp(&a.initiative));
+            .sort_by_key(|c| std::cmp::Reverse(c.initiative));
     }
 
     pub fn current_combatant(&self) -> Option<&Combatant> {

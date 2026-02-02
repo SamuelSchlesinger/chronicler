@@ -618,7 +618,7 @@ pub fn render_combat_panel(ctx: &egui::Context, app_state: &AppState) {
     if let Some(ref combat) = app_state.world.combat {
         // Position combat window below top bar, use responsive width
         let screen = ctx.screen_rect();
-        let max_width = (screen.width() * 0.3).min(250.0).max(150.0);
+        let max_width = (screen.width() * 0.3).clamp(150.0, 250.0);
 
         egui::Window::new("Combat")
             .collapsible(true)

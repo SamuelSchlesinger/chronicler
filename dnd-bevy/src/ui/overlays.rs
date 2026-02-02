@@ -10,8 +10,8 @@ use crate::state::{ActiveOverlay, AppState, CharacterSaveList, GameSaveList};
 pub fn render_inventory(ctx: &egui::Context, app_state: &AppState) {
     // Use responsive sizing based on available screen
     let screen = ctx.screen_rect();
-    let width = (screen.width() * 0.8).min(400.0).max(280.0);
-    let height = (screen.height() * 0.7).min(450.0).max(300.0);
+    let width = (screen.width() * 0.8).clamp(280.0, 400.0);
+    let height = (screen.height() * 0.7).clamp(300.0, 450.0);
 
     egui::Window::new("Inventory")
         .collapsible(false)
@@ -110,8 +110,8 @@ pub fn render_inventory(ctx: &egui::Context, app_state: &AppState) {
 pub fn render_character_sheet(ctx: &egui::Context, app_state: &mut AppState) {
     // Use responsive sizing based on available screen
     let screen = ctx.screen_rect();
-    let width = (screen.width() * 0.85).min(500.0).max(320.0);
-    let height = (screen.height() * 0.8).min(550.0).max(350.0);
+    let width = (screen.width() * 0.85).clamp(320.0, 500.0);
+    let height = (screen.height() * 0.8).clamp(350.0, 550.0);
 
     egui::Window::new("Character Sheet")
         .collapsible(false)
@@ -355,8 +355,8 @@ pub fn render_character_sheet(ctx: &egui::Context, app_state: &mut AppState) {
 /// Render the quest log overlay.
 pub fn render_quest_log(ctx: &egui::Context, app_state: &AppState) {
     let screen = ctx.screen_rect();
-    let width = (screen.width() * 0.8).min(450.0).max(280.0);
-    let height = (screen.height() * 0.7).min(450.0).max(300.0);
+    let width = (screen.width() * 0.8).clamp(280.0, 450.0);
+    let height = (screen.height() * 0.7).clamp(300.0, 450.0);
 
     egui::Window::new("Quest Log")
         .collapsible(false)
@@ -475,8 +475,8 @@ pub fn render_quest_log(ctx: &egui::Context, app_state: &AppState) {
 /// Render the help overlay.
 pub fn render_help(ctx: &egui::Context) {
     let screen = ctx.screen_rect();
-    let width = (screen.width() * 0.8).min(450.0).max(300.0);
-    let height = (screen.height() * 0.75).min(480.0).max(320.0);
+    let width = (screen.width() * 0.8).clamp(300.0, 450.0);
+    let height = (screen.height() * 0.75).clamp(320.0, 480.0);
 
     egui::Window::new("Help")
         .collapsible(false)
@@ -583,8 +583,8 @@ pub fn render_settings(ctx: &egui::Context, app_state: &mut AppState) -> bool {
     let mut return_to_menu = false;
 
     let screen = ctx.screen_rect();
-    let width = (screen.width() * 0.75).min(400.0).max(280.0);
-    let height = (screen.height() * 0.65).min(380.0).max(280.0);
+    let width = (screen.width() * 0.75).clamp(280.0, 400.0);
+    let height = (screen.height() * 0.65).clamp(280.0, 380.0);
 
     egui::Window::new("Settings")
         .collapsible(false)
@@ -711,8 +711,8 @@ pub fn render_load_character(
     let mut selected_character = None;
 
     let screen = ctx.screen_rect();
-    let width = (screen.width() * 0.8).min(450.0).max(300.0);
-    let height = (screen.height() * 0.65).min(400.0).max(280.0);
+    let width = (screen.width() * 0.8).clamp(300.0, 450.0);
+    let height = (screen.height() * 0.65).clamp(280.0, 400.0);
 
     egui::Window::new("Load Character")
         .collapsible(false)
@@ -833,8 +833,8 @@ pub fn render_load_game(
     let mut selected_path = None;
 
     let screen = ctx.screen_rect();
-    let width = (screen.width() * 0.8).min(480.0).max(300.0);
-    let height = (screen.height() * 0.65).min(400.0).max(280.0);
+    let width = (screen.width() * 0.8).clamp(300.0, 480.0);
+    let height = (screen.height() * 0.65).clamp(280.0, 400.0);
 
     egui::Window::new("Load Game")
         .collapsible(false)

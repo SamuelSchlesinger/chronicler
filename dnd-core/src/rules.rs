@@ -1219,11 +1219,7 @@ impl RulesEngine {
         }
         // Handle saving throw spells
         else if let Some(save_ability) = spell.save_type {
-            let save_effect = spell
-                .save_effect
-                .as_ref()
-                .map(|s| s.as_str())
-                .unwrap_or("negates effect");
+            let save_effect = spell.save_effect.as_deref().unwrap_or("negates effect");
 
             narrative_parts.push(format!(
                 "Targets must make a DC {} {} saving throw ({} on success).",
