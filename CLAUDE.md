@@ -59,6 +59,16 @@ cargo test --workspace   # All tests must pass
 
 **Do not commit if any of these fail.** Fix issues before committing.
 
+### Git Hook (Recommended)
+
+Install the pre-commit hook to automatically run these checks:
+
+```bash
+./scripts/install-hooks.sh
+```
+
+This will block commits that fail formatting, clippy, or tests.
+
 ## Workspace Structure
 
 This workspace contains 4 crates:
