@@ -671,6 +671,116 @@ impl CharacterClass {
             _ => 0,                      // Clerics and Druids prepare from entire list
         }
     }
+
+    /// Returns spell slots for a given character level.
+    /// Returns an array of 9 elements representing slots for spell levels 1-9.
+    pub fn spell_slots_at_level(&self, level: u8) -> [u8; 9] {
+        // Full casters: Bard, Cleric, Druid, Sorcerer, Wizard
+        // Half casters: Paladin, Ranger (start at level 2)
+        // Pact Magic: Warlock (different progression)
+
+        match self {
+            // Full casters (standard progression)
+            CharacterClass::Bard
+            | CharacterClass::Cleric
+            | CharacterClass::Druid
+            | CharacterClass::Sorcerer
+            | CharacterClass::Wizard => full_caster_slots(level),
+
+            // Half casters (Paladin, Ranger)
+            CharacterClass::Paladin | CharacterClass::Ranger => half_caster_slots(level),
+
+            // Warlock uses Pact Magic
+            CharacterClass::Warlock => warlock_slots(level),
+
+            // Non-casters
+            _ => [0; 9],
+        }
+    }
+}
+
+/// Standard full caster spell slot progression (D&D 5e SRD).
+fn full_caster_slots(level: u8) -> [u8; 9] {
+    match level {
+        1 => [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        2 => [3, 0, 0, 0, 0, 0, 0, 0, 0],
+        3 => [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        4 => [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        5 => [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        6 => [4, 3, 3, 0, 0, 0, 0, 0, 0],
+        7 => [4, 3, 3, 1, 0, 0, 0, 0, 0],
+        8 => [4, 3, 3, 2, 0, 0, 0, 0, 0],
+        9 => [4, 3, 3, 3, 1, 0, 0, 0, 0],
+        10 => [4, 3, 3, 3, 2, 0, 0, 0, 0],
+        11 => [4, 3, 3, 3, 2, 1, 0, 0, 0],
+        12 => [4, 3, 3, 3, 2, 1, 0, 0, 0],
+        13 => [4, 3, 3, 3, 2, 1, 1, 0, 0],
+        14 => [4, 3, 3, 3, 2, 1, 1, 0, 0],
+        15 => [4, 3, 3, 3, 2, 1, 1, 1, 0],
+        16 => [4, 3, 3, 3, 2, 1, 1, 1, 0],
+        17 => [4, 3, 3, 3, 2, 1, 1, 1, 1],
+        18 => [4, 3, 3, 3, 3, 1, 1, 1, 1],
+        19 => [4, 3, 3, 3, 3, 2, 1, 1, 1],
+        20 => [4, 3, 3, 3, 3, 2, 2, 1, 1],
+        _ => [0; 9],
+    }
+}
+
+/// Half caster spell slot progression (Paladin, Ranger).
+fn half_caster_slots(level: u8) -> [u8; 9] {
+    match level {
+        1 => [0, 0, 0, 0, 0, 0, 0, 0, 0], // No slots at level 1
+        2 => [2, 0, 0, 0, 0, 0, 0, 0, 0],
+        3 => [3, 0, 0, 0, 0, 0, 0, 0, 0],
+        4 => [3, 0, 0, 0, 0, 0, 0, 0, 0],
+        5 => [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        6 => [4, 2, 0, 0, 0, 0, 0, 0, 0],
+        7 => [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        8 => [4, 3, 0, 0, 0, 0, 0, 0, 0],
+        9 => [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        10 => [4, 3, 2, 0, 0, 0, 0, 0, 0],
+        11 => [4, 3, 3, 0, 0, 0, 0, 0, 0],
+        12 => [4, 3, 3, 0, 0, 0, 0, 0, 0],
+        13 => [4, 3, 3, 1, 0, 0, 0, 0, 0],
+        14 => [4, 3, 3, 1, 0, 0, 0, 0, 0],
+        15 => [4, 3, 3, 2, 0, 0, 0, 0, 0],
+        16 => [4, 3, 3, 2, 0, 0, 0, 0, 0],
+        17 => [4, 3, 3, 3, 1, 0, 0, 0, 0],
+        18 => [4, 3, 3, 3, 1, 0, 0, 0, 0],
+        19 => [4, 3, 3, 3, 2, 0, 0, 0, 0],
+        20 => [4, 3, 3, 3, 2, 0, 0, 0, 0],
+        _ => [0; 9],
+    }
+}
+
+/// Warlock Pact Magic slot progression.
+fn warlock_slots(level: u8) -> [u8; 9] {
+    // Warlocks have fewer slots but they're all at their highest available level
+    // and recharge on short rest. For simplicity, we track them in the slot array
+    // at the appropriate level.
+    match level {
+        1 => [1, 0, 0, 0, 0, 0, 0, 0, 0], // 1 slot, 1st level
+        2 => [2, 0, 0, 0, 0, 0, 0, 0, 0], // 2 slots, 1st level
+        3 => [0, 2, 0, 0, 0, 0, 0, 0, 0], // 2 slots, 2nd level
+        4 => [0, 2, 0, 0, 0, 0, 0, 0, 0],
+        5 => [0, 0, 2, 0, 0, 0, 0, 0, 0], // 2 slots, 3rd level
+        6 => [0, 0, 2, 0, 0, 0, 0, 0, 0],
+        7 => [0, 0, 0, 2, 0, 0, 0, 0, 0], // 2 slots, 4th level
+        8 => [0, 0, 0, 2, 0, 0, 0, 0, 0],
+        9 => [0, 0, 0, 0, 2, 0, 0, 0, 0], // 2 slots, 5th level
+        10 => [0, 0, 0, 0, 2, 0, 0, 0, 0],
+        11 => [0, 0, 0, 0, 3, 0, 0, 0, 0], // 3 slots, 5th level
+        12 => [0, 0, 0, 0, 3, 0, 0, 0, 0],
+        13 => [0, 0, 0, 0, 3, 0, 0, 0, 0],
+        14 => [0, 0, 0, 0, 3, 0, 0, 0, 0],
+        15 => [0, 0, 0, 0, 3, 0, 0, 0, 0],
+        16 => [0, 0, 0, 0, 3, 0, 0, 0, 0],
+        17 => [0, 0, 0, 0, 4, 0, 0, 0, 0], // 4 slots, 5th level
+        18 => [0, 0, 0, 0, 4, 0, 0, 0, 0],
+        19 => [0, 0, 0, 0, 4, 0, 0, 0, 0],
+        20 => [0, 0, 0, 0, 4, 0, 0, 0, 0],
+        _ => [0; 9],
+    }
 }
 
 impl fmt::Display for CharacterClass {

@@ -161,7 +161,9 @@ pub fn main_ui_system(
                         next_phase.set(GamePhase::MainMenu);
                     }
                 }
-                ActiveOverlay::LoadCharacter | ActiveOverlay::LoadGame | ActiveOverlay::Onboarding => {
+                ActiveOverlay::LoadCharacter
+                | ActiveOverlay::LoadGame
+                | ActiveOverlay::Onboarding => {
                     // These overlays are only used in MainMenu, close them if we're playing
                     app_state.overlay = ActiveOverlay::None;
                 }
