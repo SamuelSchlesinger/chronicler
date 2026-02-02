@@ -1,7 +1,7 @@
 //! Window settings plugin and systems.
 
 use bevy::prelude::*;
-use bevy::window::WindowMode;
+use bevy::window::{MonitorSelection, WindowMode};
 
 use super::persistence::save_settings;
 use super::settings::WindowSettings;
@@ -37,10 +37,13 @@ fn apply_window_settings(settings: Res<WindowSettings>, mut windows: Query<&mut 
 }
 
 /// Helper to apply settings to a window.
-/// Note: Fullscreen is disabled due to macOS keyboard/scaling issues.
 fn apply_settings_to_window(window: &mut Window, settings: &WindowSettings) {
-    window.mode = WindowMode::Windowed;
-    window.resolution = (settings.width, settings.height).into();
+    if settings.fullscreen {
+        window.mode = WindowMode::BorderlessFullscreen(MonitorSelection::Current);
+    } else {
+        window.mode = WindowMode::Windowed;
+        window.resolution = (settings.width, settings.height).into();
+    }
 }
 
 /// Auto-save window settings when changed.

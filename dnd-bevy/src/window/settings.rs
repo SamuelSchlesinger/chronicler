@@ -18,9 +18,9 @@ pub struct WindowSettings {
 impl Default for WindowSettings {
     fn default() -> Self {
         Self {
-            width: 1280.0,
-            height: 800.0,
-            fullscreen: false,
+            width: 1920.0,
+            height: 1080.0,
+            fullscreen: true,
             changed: false,
         }
     }

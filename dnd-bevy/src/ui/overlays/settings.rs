@@ -31,40 +31,49 @@ pub fn render_settings(
 
             // Display section
             ui.collapsing(egui::RichText::new("Display").strong(), |ui| {
-                // Window settings - resolution only (fullscreen disabled due to macOS issues)
                 if let Some(window) = window_settings {
+                    // Fullscreen toggle
                     ui.horizontal(|ui| {
-                        ui.label("Window size:");
-                        egui::ComboBox::from_id_salt("resolution")
-                            .selected_text(format!(
-                                "{}x{}",
-                                window.width as u32, window.height as u32
-                            ))
-                            .show_ui(ui, |ui| {
-                                let resolutions = [
-                                    (1280.0, 720.0, "1280x720 (HD)"),
-                                    (1280.0, 800.0, "1280x800"),
-                                    (1366.0, 768.0, "1366x768"),
-                                    (1600.0, 900.0, "1600x900"),
-                                    (1920.0, 1080.0, "1920x1080 (Full HD)"),
-                                    (2560.0, 1440.0, "2560x1440 (QHD)"),
-                                ];
-                                for (w, h, label) in resolutions {
-                                    if ui
-                                        .selectable_label(
-                                            (window.width - w).abs() < 1.0
-                                                && (window.height - h).abs() < 1.0,
-                                            label,
-                                        )
-                                        .clicked()
-                                    {
-                                        window.width = w;
-                                        window.height = h;
-                                        window.fullscreen = false; // Ensure windowed mode
-                                        window.mark_changed();
+                        ui.label("Fullscreen:");
+                        if ui.checkbox(&mut window.fullscreen, "").changed() {
+                            window.mark_changed();
+                        }
+                    });
+
+                    // Window size (only when not fullscreen)
+                    ui.add_enabled_ui(!window.fullscreen, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("Window size:");
+                            egui::ComboBox::from_id_salt("resolution")
+                                .selected_text(format!(
+                                    "{}x{}",
+                                    window.width as u32, window.height as u32
+                                ))
+                                .show_ui(ui, |ui| {
+                                    let resolutions = [
+                                        (1280.0, 720.0, "1280x720 (HD)"),
+                                        (1280.0, 800.0, "1280x800"),
+                                        (1366.0, 768.0, "1366x768"),
+                                        (1600.0, 900.0, "1600x900"),
+                                        (1920.0, 1080.0, "1920x1080 (Full HD)"),
+                                        (2560.0, 1440.0, "2560x1440 (QHD)"),
+                                    ];
+                                    for (w, h, label) in resolutions {
+                                        if ui
+                                            .selectable_label(
+                                                (window.width - w).abs() < 1.0
+                                                    && (window.height - h).abs() < 1.0,
+                                                label,
+                                            )
+                                            .clicked()
+                                        {
+                                            window.width = w;
+                                            window.height = h;
+                                            window.mark_changed();
+                                        }
                                     }
-                                }
-                            });
+                                });
+                        });
                     });
 
                     ui.add_space(4.0);
