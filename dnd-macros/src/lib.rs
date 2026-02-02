@@ -281,3 +281,44 @@ fn to_snake_case(s: &str) -> String {
     }
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_snake_case_simple() {
+        assert_eq!(to_snake_case("Hello"), "hello");
+        assert_eq!(to_snake_case("HelloWorld"), "hello_world");
+        assert_eq!(to_snake_case("RollDice"), "roll_dice");
+    }
+
+    #[test]
+    fn test_to_snake_case_multiple_uppercase() {
+        assert_eq!(to_snake_case("HTTPRequest"), "h_t_t_p_request");
+        assert_eq!(to_snake_case("XMLParser"), "x_m_l_parser");
+    }
+
+    #[test]
+    fn test_to_snake_case_already_lowercase() {
+        assert_eq!(to_snake_case("hello"), "hello");
+        assert_eq!(to_snake_case("roll_dice"), "roll_dice");
+    }
+
+    #[test]
+    fn test_to_snake_case_single_char() {
+        assert_eq!(to_snake_case("A"), "a");
+        assert_eq!(to_snake_case("a"), "a");
+    }
+
+    #[test]
+    fn test_to_snake_case_empty() {
+        assert_eq!(to_snake_case(""), "");
+    }
+
+    #[test]
+    fn test_to_snake_case_with_numbers() {
+        assert_eq!(to_snake_case("Roll2d6"), "roll2d6");
+        assert_eq!(to_snake_case("D20Roll"), "d20_roll");
+    }
+}
