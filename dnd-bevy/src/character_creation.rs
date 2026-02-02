@@ -4,6 +4,7 @@
 
 use bevy::prelude::*;
 use bevy_egui::egui;
+use dnd_core::character_builder::point_buy_cost;
 use dnd_core::spells::{get_spell, spells_by_level, SpellClass};
 use dnd_core::world::{
     Ability, AbilityScores, Background, Character, CharacterClass, ClassLevel, HitPoints,
@@ -13,21 +14,6 @@ use dnd_core::{AbilityMethod, CharacterBuilder};
 use std::collections::HashSet;
 
 use crate::state::{AppState, GamePhase};
-
-/// Point buy costs for each score value.
-fn point_buy_cost(score: u8) -> u8 {
-    match score {
-        8 => 0,
-        9 => 1,
-        10 => 2,
-        11 => 3,
-        12 => 4,
-        13 => 5,
-        14 => 7,
-        15 => 9,
-        _ => 0,
-    }
-}
 
 /// Character creation step.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -655,8 +641,8 @@ fn render_point_buy(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
             ui.label(format!("{}: ", ability.abbreviation()));
 
             if ui.button("-").clicked() && score > 8 {
-                let current_cost = point_buy_cost(score);
-                let new_cost = point_buy_cost(score - 1);
+                let current_cost = point_buy_cost(score).unwrap_or(0);
+                let new_cost = point_buy_cost(score - 1).unwrap_or(0);
                 let refund = current_cost - new_cost;
                 creation.ability_scores.set(*ability, score - 1);
                 creation.point_buy_points += refund;
@@ -665,8 +651,8 @@ fn render_point_buy(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
             ui.label(egui::RichText::new(format!("{score:2}")).strong());
 
             let can_increase = score < 15 && {
-                let current_cost = point_buy_cost(score);
-                let new_cost = point_buy_cost(score + 1);
+                let current_cost = point_buy_cost(score).unwrap_or(0);
+                let new_cost = point_buy_cost(score + 1).unwrap_or(0);
                 creation.point_buy_points >= new_cost - current_cost
             };
 
@@ -674,8 +660,8 @@ fn render_point_buy(ui: &mut egui::Ui, creation: &mut CharacterCreation) {
                 .add_enabled(can_increase, egui::Button::new("+"))
                 .clicked()
             {
-                let current_cost = point_buy_cost(score);
-                let new_cost = point_buy_cost(score + 1);
+                let current_cost = point_buy_cost(score).unwrap_or(0);
+                let new_cost = point_buy_cost(score + 1).unwrap_or(0);
                 let cost_diff = new_cost - current_cost;
                 creation.ability_scores.set(*ability, score + 1);
                 creation.point_buy_points -= cost_diff;
