@@ -8,8 +8,11 @@
 //! - `combat` - Damage, healing, conditions, combat flow
 //! - `inventory` - Items and currency management
 //! - `class_features` - Class-specific abilities (rage, ki, smite, etc.)
-//! - `world` - Rest, location, story memory, spells, progression
+//! - `world` - Rest, story memory, spells, progression, time, ability scores
+//! - `locations` - Location creation, connections, and state updates
+//! - `npc` - NPC creation, updates, movement, and removal
 //! - `quests` - Quest creation, objectives, and completion tracking
+//! - `state` - Declarative state assertions (disposition, location, status, relationships)
 
 mod checks;
 mod class_features;
@@ -17,11 +20,16 @@ mod combat;
 mod converters;
 mod info;
 mod inventory;
+mod knowledge;
+mod locations;
+mod npc;
 mod parsing;
 mod quests;
+mod schedule;
+mod state;
 mod world;
 
-pub use info::execute_info_tool;
+pub use info::execute_info_tool_with_memory;
 pub use parsing::parse_tool_call;
 
 use claude::Tool;
@@ -79,6 +87,18 @@ impl DmTools {
             world::register_consequence(),
             world::cast_spell(),
             world::award_experience(),
+            world::modify_ability_score(),
+            world::advance_time(),
+            world::restore_spell_slot(),
+            // Locations
+            locations::create_location(),
+            locations::connect_locations(),
+            locations::update_location(),
+            // NPCs
+            npc::create_npc(),
+            npc::update_npc(),
+            npc::move_npc(),
+            npc::remove_npc(),
             // Quests
             quests::create_quest(),
             quests::add_quest_objective(),
@@ -86,6 +106,16 @@ impl DmTools {
             quests::complete_quest(),
             quests::fail_quest(),
             quests::update_quest(),
+            // State assertions
+            state::assert_state(),
+            state::query_state(),
+            // Knowledge tracking
+            knowledge::share_knowledge(),
+            knowledge::query_knowledge(),
+            // Scheduled events
+            schedule::schedule_event(),
+            schedule::check_schedule(),
+            schedule::cancel_event(),
         ]
     }
 }

@@ -5,12 +5,12 @@
 //! and tool calls that are resolved by the RulesEngine.
 
 use super::memory::{DmMemory, FactCategory};
-use super::relevance::{RelevanceChecker, RelevanceResult};
+use super::relevance::{InferredStateChange, RelevanceChecker, RelevanceResult, StateInferrer};
 use super::story_memory::{
     ConsequenceSeverity, EntityType, FactCategory as StoryFactCategory, FactSource, StoryMemory,
 };
-use super::tools::{execute_info_tool, parse_tool_call, DmTools};
-use crate::rules::{apply_effects, Effect, Intent, Resolution, RulesEngine};
+use super::tools::{execute_info_tool_with_memory, parse_tool_call, DmTools};
+use crate::rules::{apply_effects, Effect, Intent, Resolution, RulesEngine, StateType};
 use crate::world::{GameMode, GameWorld, NarrativeType};
 use claude::{Claude, ContentBlock, Message, Request, StopReason, StreamEvent, ToolResult};
 use futures::StreamExt;
@@ -53,6 +53,21 @@ pub struct DmConfig {
     /// When `true`, all effects are collected during streaming and applied atomically
     /// at the end. This ensures all-or-nothing behavior but delays effect callbacks.
     pub deferred_effects: bool,
+
+    /// Whether to run post-narrative state inference.
+    ///
+    /// When `true`, after the DM generates a response, a fast model (Haiku) analyzes
+    /// the narrative to detect implied state changes that weren't explicitly recorded.
+    /// High-confidence changes (>0.8) are automatically applied.
+    ///
+    /// This helps fix the "narrative-state gap" where the DM writes "She smiles warmly"
+    /// but doesn't call `update_npc(disposition="friendly")`.
+    pub enable_state_inference: bool,
+
+    /// Confidence threshold for auto-applying inferred state changes (0.0 to 1.0).
+    /// Only changes with confidence >= this threshold are applied.
+    /// Default: 0.8 (high confidence only).
+    pub state_inference_confidence: f32,
 }
 
 impl Default for DmConfig {
@@ -63,6 +78,8 @@ impl Default for DmConfig {
             temperature: Some(0.8),
             custom_system_prompt: None,
             deferred_effects: false,
+            enable_state_inference: true, // Enable by default
+            state_inference_confidence: 0.8,
         }
     }
 }
@@ -81,6 +98,10 @@ pub struct DmResponse {
 
     /// Resolution details for each intent.
     pub resolutions: Vec<Resolution>,
+
+    /// State changes inferred from the narrative (if inference is enabled).
+    /// These are already applied to the world state.
+    pub inferred_state_changes: Vec<InferredStateChange>,
 }
 
 /// The AI Dungeon Master.
@@ -233,7 +254,9 @@ impl DungeonMaster {
             let mut tool_results = Vec::new();
             for (id, name, input) in tool_uses {
                 // First check if it's an informational tool
-                let result = if let Some(info_result) = execute_info_tool(&name, &input, world) {
+                let result = if let Some(info_result) =
+                    execute_info_tool_with_memory(&name, &input, world, &self.story_memory)
+                {
                     // Info tools just return data without changing state
                     ToolResult::success(&info_result)
                 } else if let Some(intent) = parse_tool_call(&name, &input, world) {
@@ -310,11 +333,20 @@ impl DungeonMaster {
         // Add to game world narrative
         world.add_narrative(narrative.clone(), NarrativeType::DmNarration);
 
+        // Run post-narrative state inference if enabled
+        let inferred_state_changes = if self.config.enable_state_inference {
+            self.infer_and_apply_state_changes(&narrative, world)
+                .await?
+        } else {
+            Vec::new()
+        };
+
         Ok(DmResponse {
             narrative,
             intents: all_intents,
             effects: all_effects,
             resolutions: all_resolutions,
+            inferred_state_changes,
         })
     }
 
@@ -519,7 +551,8 @@ impl DungeonMaster {
                     .unwrap_or_else(|_| serde_json::json!({}));
 
                 // First check if it's an informational tool
-                let result = if let Some(info_result) = execute_info_tool(&tool.name, &input, world)
+                let result = if let Some(info_result) =
+                    execute_info_tool_with_memory(&tool.name, &input, world, &self.story_memory)
                 {
                     // Info tools just return data without changing state
                     ToolResult::success(&info_result)
@@ -617,11 +650,20 @@ impl DungeonMaster {
         // Add to game world narrative
         world.add_narrative(narrative.clone(), NarrativeType::DmNarration);
 
+        // Run post-narrative state inference if enabled
+        let inferred_state_changes = if self.config.enable_state_inference {
+            self.infer_and_apply_state_changes(&narrative, world)
+                .await?
+        } else {
+            Vec::new()
+        };
+
         Ok(DmResponse {
             narrative,
             intents: all_intents,
             effects: all_effects,
             resolutions: all_resolutions,
+            inferred_state_changes,
         })
     }
 
@@ -634,6 +676,10 @@ impl DungeonMaster {
         // Add story memory instructions
         prompt.push_str("\n\n");
         prompt.push_str(include_str!("prompts/story_memory.txt"));
+
+        // Add world building instructions - NPC, location, and state management
+        prompt.push_str("\n\n");
+        prompt.push_str(include_str!("prompts/world_building.txt"));
 
         // Add background-based adventure hooks
         prompt.push_str("\n\n");
@@ -886,6 +932,84 @@ impl DungeonMaster {
         }
     }
 
+    /// Infer state changes from narrative and apply them to the world.
+    ///
+    /// This uses a fast model (Haiku) to detect implied state changes
+    /// that weren't explicitly recorded with tools.
+    async fn infer_and_apply_state_changes(
+        &mut self,
+        narrative: &str,
+        world: &mut GameWorld,
+    ) -> Result<Vec<InferredStateChange>, DmError> {
+        // Collect known entity names from NPCs and story memory
+        let mut known_entities: Vec<String> =
+            world.npcs.values().map(|npc| npc.name.clone()).collect();
+
+        // Also include entities from story memory
+        for entity in self
+            .story_memory
+            .all_entities_by_importance()
+            .iter()
+            .take(20)
+        {
+            if !known_entities
+                .iter()
+                .any(|n: &String| n.eq_ignore_ascii_case(&entity.name))
+            {
+                known_entities.push(entity.name.clone());
+            }
+        }
+
+        // Skip if no entities to track
+        if known_entities.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        // Run state inference
+        let inferrer = StateInferrer::new(self.client.clone());
+        let inferred = inferrer
+            .infer_state_changes(
+                narrative,
+                &known_entities,
+                self.config.state_inference_confidence,
+            )
+            .await
+            .map_err(|e| DmError::ToolError(format!("State inference failed: {e}")))?;
+
+        // Apply inferred changes to the world
+        for change in &inferred {
+            // Parse state type
+            if let Some(state_type) = StateType::parse(&change.state_type) {
+                // Create and resolve the intent
+                let intent = Intent::AssertState {
+                    entity_name: change.entity_name.clone(),
+                    state_type,
+                    new_value: change.new_value.clone(),
+                    reason: format!("Inferred from narrative: {}", change.evidence),
+                    target_entity: change.target_entity.clone(),
+                };
+
+                let resolution = self.rules.resolve(world, intent);
+                apply_effects(world, &resolution.effects);
+
+                // Also record as a fact in story memory
+                self.store_fact(
+                    &change.entity_name,
+                    "npc",
+                    &format!(
+                        "{} is now {} ({})",
+                        change.entity_name, change.new_value, change.evidence
+                    ),
+                    &change.state_type,
+                    &[],
+                    0.7,
+                );
+            }
+        }
+
+        Ok(inferred)
+    }
+
     /// Store a fact in story memory.
     fn store_fact(
         &mut self,
@@ -1078,6 +1202,7 @@ mod tests {
             intents: vec![],
             effects: vec![],
             resolutions: vec![],
+            inferred_state_changes: vec![],
         };
         assert_eq!(response.narrative, "You enter the dark cave.");
         assert!(response.intents.is_empty());

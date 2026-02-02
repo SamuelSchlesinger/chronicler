@@ -11,7 +11,9 @@ mod tools;
 
 pub use agent::{DmConfig, DmError, DmResponse, DungeonMaster};
 pub use memory::{CampaignFact, DmMemory, FactCategory};
-pub use relevance::{RelevanceChecker, RelevanceError, RelevanceResult};
+pub use relevance::{
+    InferredStateChange, RelevanceChecker, RelevanceError, RelevanceResult, StateInferrer,
+};
 pub use story_memory::{
     Consequence, ConsequenceId, ConsequenceSeverity, ConsequenceStatus, Entity, EntityId,
     EntityType, FactCategory as StoryFactCategory, FactSource, Relationship, RelationshipType,

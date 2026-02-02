@@ -158,10 +158,18 @@ impl GameSession {
         // Create a sample character
         let character = create_sample_fighter(&config.character_name);
 
-        let mut world = GameWorld::new(config.campaign_name, character);
+        let mut world = GameWorld::new(config.campaign_name, character.clone());
 
-        // Update starting location name if custom
-        world.current_location.name = config.starting_location;
+        // Generate starting location if not specified
+        let starting_location = if config.starting_location.is_empty() {
+            generate_starting_location(&character)
+                .await
+                .unwrap_or_else(|_| "a crossroads where several paths meet".to_string())
+        } else {
+            config.starting_location
+        };
+
+        world.current_location.name = starting_location;
 
         Ok(Self { dm, world })
     }
@@ -435,7 +443,7 @@ Respond with ONLY the location description, no preamble."#,
     );
 
     let request = Request::new(vec![Message::user(&prompt)])
-        .with_model("claude-haiku-4-20250514")
+        .with_model("claude-3-5-haiku-20241022")
         .with_max_tokens(150);
 
     let response = client
@@ -492,6 +500,7 @@ mod tests {
             intents: vec![],
             effects: vec![],
             resolutions: vec![],
+            inferred_state_changes: vec![],
         };
 
         let response: Response = dm_response.into();

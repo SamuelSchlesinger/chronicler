@@ -192,3 +192,84 @@ pub fn award_experience() -> Tool {
         }),
     }
 }
+
+/// Temporarily modify an ability score.
+pub fn modify_ability_score() -> Tool {
+    Tool {
+        name: "modify_ability_score".to_string(),
+        description: "Temporarily modify an ability score. Use this when a spell, poison, curse, magic item, or other effect grants a bonus or penalty to an ability score. Examples: Ray of Enfeeblement reducing Strength, a Belt of Giant Strength boosting Strength, poison reducing Constitution, an Intellect Devourer draining Intelligence.".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string",
+                    "enum": ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"],
+                    "description": "The ability score to modify"
+                },
+                "modifier": {
+                    "type": "integer",
+                    "description": "Amount to add or subtract from the ability score (can be negative for penalties)"
+                },
+                "source": {
+                    "type": "string",
+                    "description": "What is causing the modification (e.g., 'poison', 'Ray of Enfeeblement spell', 'Belt of Giant Strength', 'curse')"
+                },
+                "duration": {
+                    "type": "string",
+                    "description": "How long the modification lasts (e.g., 'until long rest', '1 hour', '1 minute', 'permanent', 'until dispelled')"
+                }
+            },
+            "required": ["ability", "modifier", "source"]
+        }),
+    }
+}
+
+/// Advance game time without resting.
+pub fn advance_time() -> Tool {
+    Tool {
+        name: "advance_time".to_string(),
+        description: "Advance game time without taking a rest. Use this when time passes during travel, waiting, searching, or other activities that don't qualify as a short or long rest. This tracks duration-based effects and can trigger time-sensitive events. At least one of 'minutes' or 'hours' must be provided.".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "minutes": {
+                    "type": "integer",
+                    "description": "Number of minutes to advance"
+                },
+                "hours": {
+                    "type": "integer",
+                    "description": "Number of hours to advance"
+                },
+                "description": {
+                    "type": "string",
+                    "description": "What happens during this time (e.g., 'traveling through the forest', 'waiting for nightfall', 'searching the library')"
+                }
+            },
+            "required": []
+        }),
+    }
+}
+
+/// Restore a specific spell slot.
+pub fn restore_spell_slot() -> Tool {
+    Tool {
+        name: "restore_spell_slot".to_string(),
+        description: "Restore a specific spell slot without taking a rest. Use this for class features like Arcane Recovery (Wizard), magic items that restore spell slots, or other special abilities. Do NOT use this for normal rest recovery - use short_rest or long_rest instead.".to_string(),
+        input_schema: json!({
+            "type": "object",
+            "properties": {
+                "slot_level": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9,
+                    "description": "The level of the spell slot to restore (1-9)"
+                },
+                "source": {
+                    "type": "string",
+                    "description": "Why the spell slot is being restored (e.g., 'Arcane Recovery', 'Pearl of Power', 'Font of Magic')"
+                }
+            },
+            "required": ["slot_level", "source"]
+        }),
+    }
+}

@@ -77,6 +77,21 @@ pub fn sound_for_effect(effect: &Effect) -> Option<SoundEffect> {
         | Effect::QuestCompleted { .. }
         | Effect::QuestFailed { .. }
         | Effect::QuestUpdated { .. }
-        | Effect::SneakAttackUsed { .. } => None,
+        | Effect::SneakAttackUsed { .. }
+        // World-building effects - no sounds
+        | Effect::NpcCreated { .. }
+        | Effect::NpcUpdated { .. }
+        | Effect::NpcMoved { .. }
+        | Effect::NpcRemoved { .. }
+        | Effect::LocationCreated { .. }
+        | Effect::LocationsConnected { .. }
+        | Effect::LocationUpdated { .. }
+        | Effect::AbilityScoreModified { .. }
+        | Effect::SpellSlotRestored { .. }
+        | Effect::StateAsserted { .. }
+        | Effect::KnowledgeShared { .. }
+        | Effect::EventScheduled { .. }
+        | Effect::EventCancelled { .. }
+        | Effect::EventTriggered { .. } => None,
     }
 }

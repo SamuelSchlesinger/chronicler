@@ -206,6 +206,159 @@ If nothing is relevant, return empty arrays."#
     }
 }
 
+// =============================================================================
+// State Inference
+// =============================================================================
+
+/// An inferred state change detected from narrative text.
+#[derive(Debug, Clone)]
+pub struct InferredStateChange {
+    /// The entity whose state changed.
+    pub entity_name: String,
+    /// What type of state changed.
+    pub state_type: String,
+    /// The inferred new value.
+    pub new_value: String,
+    /// Why this was inferred (quote from narrative).
+    pub evidence: String,
+    /// Confidence level (0.0 to 1.0).
+    pub confidence: f32,
+    /// Target entity for relationships.
+    pub target_entity: Option<String>,
+}
+
+/// Response format for state inference.
+#[derive(Debug, Deserialize)]
+struct StateInferenceResponse {
+    #[serde(default)]
+    inferred_changes: Vec<InferredChange>,
+}
+
+#[derive(Debug, Deserialize)]
+struct InferredChange {
+    entity_name: String,
+    state_type: String,
+    new_value: String,
+    evidence: String,
+    confidence: f32,
+    #[serde(default)]
+    target_entity: Option<String>,
+}
+
+/// Infers state changes from DM narrative text.
+///
+/// This uses a fast model (Haiku) to detect when narrative implies state changes
+/// that the DM didn't explicitly record with tools. For example:
+/// - "Mira smiles warmly" → disposition changed to friendly
+/// - "The guard captain storms off to the gate" → location changed
+pub struct StateInferrer {
+    client: Claude,
+    model: String,
+}
+
+impl StateInferrer {
+    /// Create a new state inferrer with the given API client.
+    pub fn new(client: Claude) -> Self {
+        Self {
+            client,
+            model: RELEVANCE_MODEL.to_string(),
+        }
+    }
+
+    /// Set a custom model for state inference.
+    pub fn with_model(mut self, model: impl Into<String>) -> Self {
+        self.model = model.into();
+        self
+    }
+
+    /// Infer state changes from a DM narrative response.
+    ///
+    /// Returns changes that should be applied, filtered by confidence threshold.
+    pub async fn infer_state_changes(
+        &self,
+        narrative: &str,
+        known_entities: &[String],
+        confidence_threshold: f32,
+    ) -> Result<Vec<InferredStateChange>, RelevanceError> {
+        // Skip if narrative is too short
+        if narrative.len() < 20 {
+            return Ok(Vec::new());
+        }
+
+        // Skip if no entities to track
+        if known_entities.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let entities_list = known_entities.join(", ");
+
+        let prompt = format!(
+            r#"Analyze this D&D narrative for implied state changes that weren't explicitly recorded.
+
+## Narrative
+"{narrative}"
+
+## Known Entities
+{entities_list}
+
+## Instructions
+Look for IMPLIED state changes in the narrative:
+- Disposition: attitude changes (smiles, glares, thanks warmly, becomes hostile)
+- Location: movement (storms off, follows, arrives at)
+- Status: condition changes (injured, recovered, disappeared)
+- Relationship: connection changes (befriends, betrays, owes a debt to)
+
+Only report changes with high confidence (>0.7). Require explicit evidence in the text.
+
+Respond with ONLY a JSON object (no markdown):
+{{
+  "inferred_changes": [
+    {{
+      "entity_name": "Mira",
+      "state_type": "disposition",
+      "new_value": "friendly",
+      "evidence": "She smiles warmly and thanks you",
+      "confidence": 0.9,
+      "target_entity": null
+    }}
+  ]
+}}
+
+If no state changes are implied, return empty array: {{"inferred_changes": []}}"#
+        );
+
+        let request = Request::new(vec![Message::user(&prompt)])
+            .with_model(&self.model)
+            .with_max_tokens(500)
+            .with_temperature(0.0);
+
+        let response = self.client.complete(request).await?;
+        let response_text = response.text();
+
+        // Parse response
+        let json_str = extract_json(&response_text);
+        let parsed: StateInferenceResponse = serde_json::from_str(json_str)
+            .map_err(|e| RelevanceError::ParseError(format!("{e}: {json_str}")))?;
+
+        // Filter by confidence and convert
+        let changes: Vec<InferredStateChange> = parsed
+            .inferred_changes
+            .into_iter()
+            .filter(|c| c.confidence >= confidence_threshold)
+            .map(|c| InferredStateChange {
+                entity_name: c.entity_name,
+                state_type: c.state_type,
+                new_value: c.new_value,
+                evidence: c.evidence,
+                confidence: c.confidence,
+                target_entity: c.target_entity,
+            })
+            .collect();
+
+        Ok(changes)
+    }
+}
+
 /// Extract JSON from a response that might have markdown code blocks.
 fn extract_json(text: &str) -> &str {
     let text = text.trim();

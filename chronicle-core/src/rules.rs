@@ -378,6 +378,185 @@ pub enum Intent {
         new_description: Option<String>,
         add_rewards: Vec<String>,
     },
+
+    // ========================================================================
+    // World Building Intents
+    // ========================================================================
+    /// Create a new NPC in the world
+    CreateNpc {
+        name: String,
+        description: String,
+        personality: String,
+        occupation: Option<String>,
+        disposition: String,
+        location: Option<String>,
+        known_information: Vec<String>,
+    },
+
+    /// Update an existing NPC's attributes
+    UpdateNpc {
+        npc_name: String,
+        disposition: Option<String>,
+        add_information: Vec<String>,
+        new_description: Option<String>,
+        new_personality: Option<String>,
+    },
+
+    /// Move an NPC to a new location
+    MoveNpc {
+        npc_name: String,
+        destination: String,
+        reason: Option<String>,
+    },
+
+    /// Remove an NPC from the world
+    RemoveNpc {
+        npc_name: String,
+        reason: String,
+        permanent: bool,
+    },
+
+    /// Create a new location in the world
+    CreateLocation {
+        name: String,
+        location_type: String,
+        description: String,
+        parent_location: Option<String>,
+        items: Vec<String>,
+        npcs_present: Vec<String>,
+    },
+
+    /// Connect two locations with a path/route
+    ConnectLocations {
+        from_location: String,
+        to_location: String,
+        direction: Option<String>,
+        travel_time_minutes: Option<u32>,
+        bidirectional: bool,
+    },
+
+    /// Update an existing location's attributes
+    UpdateLocation {
+        location_name: String,
+        new_description: Option<String>,
+        add_items: Vec<String>,
+        remove_items: Vec<String>,
+        add_npcs: Vec<String>,
+        remove_npcs: Vec<String>,
+    },
+
+    /// Modify an ability score temporarily or permanently
+    ModifyAbilityScore {
+        ability: Ability,
+        modifier: i8,
+        source: String,
+        duration: Option<String>,
+    },
+
+    /// Restore a spell slot
+    RestoreSpellSlot { slot_level: u8, source: String },
+
+    // ========================================================================
+    // State Assertion Intents (declarative state changes)
+    // ========================================================================
+    /// Assert a state change for an entity (simpler alternative to specific update tools)
+    AssertState {
+        entity_name: String,
+        state_type: StateType,
+        new_value: String,
+        reason: String,
+        target_entity: Option<String>,
+    },
+
+    // ========================================================================
+    // Knowledge Tracking Intents
+    // ========================================================================
+    /// Share knowledge with an entity
+    ShareKnowledge {
+        knowing_entity: String,
+        content: String,
+        source: String,
+        verification: String,
+        context: Option<String>,
+    },
+
+    // ========================================================================
+    // Scheduled Event Intents
+    // ========================================================================
+    /// Schedule a future event
+    ScheduleEvent {
+        description: String,
+        /// Minutes from now (for relative timing)
+        minutes: Option<u32>,
+        /// Hours from now (for relative timing)
+        hours: Option<u32>,
+        /// Absolute timing: day of month
+        day: Option<u8>,
+        /// Absolute timing: month
+        month: Option<u8>,
+        /// Absolute timing: year
+        year: Option<i32>,
+        /// Hour of day (0-23)
+        hour: Option<u8>,
+        /// For daily events: hour
+        daily_hour: Option<u8>,
+        /// For daily events: minute
+        daily_minute: Option<u8>,
+        /// Location where event occurs
+        location: Option<String>,
+        /// Entities involved
+        involved_entities: Vec<String>,
+        /// Visibility to player
+        visibility: String,
+        /// Whether event repeats
+        repeating: bool,
+    },
+
+    /// Cancel a scheduled event
+    CancelEvent {
+        event_description: String,
+        reason: String,
+    },
+}
+
+/// Types of state that can be asserted/changed for entities.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum StateType {
+    /// Attitude toward the player (hostile/unfriendly/neutral/friendly/helpful)
+    Disposition,
+    /// Physical location
+    Location,
+    /// Alive/dead/injured/missing/etc.
+    Status,
+    /// What the entity knows
+    Knowledge,
+    /// Relationship to another entity
+    Relationship,
+}
+
+impl StateType {
+    /// Parse from string (case-insensitive).
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_lowercase().as_str() {
+            "disposition" => Some(StateType::Disposition),
+            "location" => Some(StateType::Location),
+            "status" => Some(StateType::Status),
+            "knowledge" => Some(StateType::Knowledge),
+            "relationship" => Some(StateType::Relationship),
+            _ => None,
+        }
+    }
+
+    /// Get the name of this state type.
+    pub fn name(&self) -> &'static str {
+        match self {
+            StateType::Disposition => "disposition",
+            StateType::Location => "location",
+            StateType::Status => "status",
+            StateType::Knowledge => "knowledge",
+            StateType::Relationship => "relationship",
+        }
+    }
 }
 
 /// Initial combatant data for starting combat.
@@ -756,6 +935,99 @@ pub enum Effect {
         new_description: Option<String>,
         add_rewards: Vec<String>,
     },
+
+    // ========================================================================
+    // World Building Effects
+    // ========================================================================
+    /// An NPC was created
+    NpcCreated {
+        name: String,
+        location: Option<String>,
+    },
+
+    /// An NPC was updated
+    NpcUpdated { npc_name: String, changes: String },
+
+    /// An NPC was moved to a new location
+    NpcMoved {
+        npc_name: String,
+        from_location: Option<String>,
+        to_location: String,
+    },
+
+    /// An NPC was removed from the world
+    NpcRemoved { npc_name: String, reason: String },
+
+    /// A location was created
+    LocationCreated { name: String, location_type: String },
+
+    /// Two locations were connected
+    LocationsConnected {
+        from: String,
+        to: String,
+        direction: Option<String>,
+    },
+
+    /// A location was updated
+    LocationUpdated {
+        location_name: String,
+        changes: String,
+    },
+
+    /// An ability score was modified
+    AbilityScoreModified {
+        ability: Ability,
+        modifier: i8,
+        source: String,
+    },
+
+    /// A spell slot was restored
+    SpellSlotRestored { level: u8, new_remaining: u8 },
+
+    // ========================================================================
+    // State Assertion Effects
+    // ========================================================================
+    /// An entity's state was asserted/changed
+    StateAsserted {
+        entity_name: String,
+        state_type: StateType,
+        old_value: Option<String>,
+        new_value: String,
+        reason: String,
+        target_entity: Option<String>,
+    },
+
+    // ========================================================================
+    // Knowledge Tracking Effects
+    // ========================================================================
+    /// Knowledge was shared with an entity
+    KnowledgeShared {
+        knowing_entity: String,
+        content: String,
+        source: String,
+        verification: String,
+        context: Option<String>,
+    },
+
+    // ========================================================================
+    // Scheduled Event Effects
+    // ========================================================================
+    /// An event was scheduled
+    EventScheduled {
+        description: String,
+        trigger_description: String,
+        location: Option<String>,
+        visibility: String,
+    },
+
+    /// A scheduled event was cancelled
+    EventCancelled { description: String, reason: String },
+
+    /// A scheduled event was triggered (for notification)
+    EventTriggered {
+        description: String,
+        location: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -1048,6 +1320,170 @@ impl RulesEngine {
                 new_description,
                 add_rewards,
             } => self.resolve_update_quest(&quest_name, new_description.as_deref(), &add_rewards),
+
+            // World Building intents
+            Intent::CreateNpc {
+                name,
+                description,
+                personality,
+                occupation,
+                disposition,
+                location,
+                known_information,
+            } => self.resolve_create_npc(
+                world,
+                &name,
+                &description,
+                &personality,
+                occupation.as_deref(),
+                &disposition,
+                location.as_deref(),
+                &known_information,
+            ),
+            Intent::UpdateNpc {
+                npc_name,
+                disposition,
+                add_information,
+                new_description,
+                new_personality,
+            } => self.resolve_update_npc(
+                world,
+                &npc_name,
+                disposition.as_deref(),
+                &add_information,
+                new_description.as_deref(),
+                new_personality.as_deref(),
+            ),
+            Intent::MoveNpc {
+                npc_name,
+                destination,
+                reason,
+            } => self.resolve_move_npc(world, &npc_name, &destination, reason.as_deref()),
+            Intent::RemoveNpc {
+                npc_name,
+                reason,
+                permanent,
+            } => self.resolve_remove_npc(&npc_name, &reason, permanent),
+            Intent::CreateLocation {
+                name,
+                location_type,
+                description,
+                parent_location,
+                items,
+                npcs_present,
+            } => self.resolve_create_location(
+                &name,
+                &location_type,
+                &description,
+                parent_location.as_deref(),
+                &items,
+                &npcs_present,
+            ),
+            Intent::ConnectLocations {
+                from_location,
+                to_location,
+                direction,
+                travel_time_minutes,
+                bidirectional,
+            } => self.resolve_connect_locations(
+                &from_location,
+                &to_location,
+                direction.as_deref(),
+                travel_time_minutes,
+                bidirectional,
+            ),
+            Intent::UpdateLocation {
+                location_name,
+                new_description,
+                add_items,
+                remove_items,
+                add_npcs,
+                remove_npcs,
+            } => self.resolve_update_location(
+                world,
+                &location_name,
+                new_description.as_deref(),
+                &add_items,
+                &remove_items,
+                &add_npcs,
+                &remove_npcs,
+            ),
+            Intent::ModifyAbilityScore {
+                ability,
+                modifier,
+                source,
+                duration,
+            } => self.resolve_modify_ability_score(ability, modifier, &source, duration.as_deref()),
+            Intent::RestoreSpellSlot { slot_level, source } => {
+                self.resolve_restore_spell_slot(world, slot_level, &source)
+            }
+
+            // State assertion
+            Intent::AssertState {
+                entity_name,
+                state_type,
+                new_value,
+                reason,
+                target_entity,
+            } => self.resolve_assert_state(
+                world,
+                &entity_name,
+                state_type,
+                &new_value,
+                &reason,
+                target_entity.as_deref(),
+            ),
+
+            // Knowledge tracking
+            Intent::ShareKnowledge {
+                knowing_entity,
+                content,
+                source,
+                verification,
+                context,
+            } => self.resolve_share_knowledge(
+                &knowing_entity,
+                &content,
+                &source,
+                &verification,
+                context.as_deref(),
+            ),
+
+            // Scheduled events
+            Intent::ScheduleEvent {
+                description,
+                minutes,
+                hours,
+                day,
+                month,
+                year,
+                hour,
+                daily_hour,
+                daily_minute,
+                location,
+                involved_entities: _,
+                visibility,
+                repeating,
+            } => self.resolve_schedule_event(
+                world,
+                &description,
+                minutes,
+                hours,
+                day,
+                month,
+                year,
+                hour,
+                daily_hour,
+                daily_minute,
+                location.as_deref(),
+                &visibility,
+                repeating,
+            ),
+
+            Intent::CancelEvent {
+                event_description,
+                reason,
+            } => self.resolve_cancel_event(&event_description, &reason),
 
             #[allow(unreachable_patterns)]
             _ => Resolution::new("Intent not yet implemented"),
@@ -3447,6 +3883,527 @@ impl RulesEngine {
             add_rewards: add_rewards.to_vec(),
         })
     }
+
+    // ========================================================================
+    // World Building Resolution Methods
+    // ========================================================================
+
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_create_npc(
+        &self,
+        world: &GameWorld,
+        name: &str,
+        _description: &str,
+        _personality: &str,
+        occupation: Option<&str>,
+        disposition: &str,
+        location: Option<&str>,
+        _known_information: &[String],
+    ) -> Resolution {
+        // Check if an NPC with this name already exists (case-insensitive)
+        let existing_npc = world
+            .npcs
+            .values()
+            .find(|n| n.name.eq_ignore_ascii_case(name));
+
+        if let Some(existing) = existing_npc {
+            // NPC already exists - return an error with guidance
+            return Resolution::new(format!(
+                "DUPLICATE NPC ERROR: An NPC named '{}' already exists (disposition: {:?}). \
+                Use 'update_npc' instead to modify their disposition, add information, or change their description. \
+                Do NOT call create_npc again for this character.",
+                existing.name,
+                existing.disposition
+            ));
+        }
+
+        let location_text = location.map(|l| format!(" at {}", l)).unwrap_or_default();
+        let occupation_text = occupation.map(|o| format!(" ({})", o)).unwrap_or_default();
+
+        Resolution::new(format!(
+            "NPC {} ({}){}{}  enters the world",
+            name, disposition, occupation_text, location_text
+        ))
+        .with_effect(Effect::NpcCreated {
+            name: name.to_string(),
+            location: location.map(|s| s.to_string()),
+        })
+    }
+
+    fn resolve_update_npc(
+        &self,
+        world: &GameWorld,
+        npc_name: &str,
+        disposition: Option<&str>,
+        add_information: &[String],
+        new_description: Option<&str>,
+        new_personality: Option<&str>,
+    ) -> Resolution {
+        // Check if NPC exists
+        let npc_exists = world
+            .npcs
+            .values()
+            .any(|n| n.name.eq_ignore_ascii_case(npc_name));
+
+        if !npc_exists {
+            return Resolution::new(format!("NPC '{}' not found in the world", npc_name));
+        }
+
+        let mut changes = Vec::new();
+        if disposition.is_some() {
+            changes.push("disposition changed");
+        }
+        if !add_information.is_empty() {
+            changes.push("new information learned");
+        }
+        if new_description.is_some() {
+            changes.push("description updated");
+        }
+        if new_personality.is_some() {
+            changes.push("personality updated");
+        }
+
+        let changes_text = if changes.is_empty() {
+            "no changes".to_string()
+        } else {
+            changes.join(", ")
+        };
+
+        Resolution::new(format!("NPC {} updated: {}", npc_name, changes_text)).with_effect(
+            Effect::NpcUpdated {
+                npc_name: npc_name.to_string(),
+                changes: changes_text,
+            },
+        )
+    }
+
+    fn resolve_move_npc(
+        &self,
+        world: &GameWorld,
+        npc_name: &str,
+        destination: &str,
+        reason: Option<&str>,
+    ) -> Resolution {
+        // Find the NPC's current location
+        let from_location = world
+            .npcs
+            .values()
+            .find(|n| n.name.eq_ignore_ascii_case(npc_name))
+            .and_then(|n| n.location_id)
+            .and_then(|loc_id| world.known_locations.get(&loc_id))
+            .map(|loc| loc.name.clone());
+
+        let reason_text = reason.map(|r| format!(" ({})", r)).unwrap_or_default();
+
+        Resolution::new(format!(
+            "NPC {} moves to {}{}",
+            npc_name, destination, reason_text
+        ))
+        .with_effect(Effect::NpcMoved {
+            npc_name: npc_name.to_string(),
+            from_location,
+            to_location: destination.to_string(),
+        })
+    }
+
+    fn resolve_remove_npc(&self, npc_name: &str, reason: &str, permanent: bool) -> Resolution {
+        let permanence = if permanent {
+            "permanently"
+        } else {
+            "temporarily"
+        };
+
+        Resolution::new(format!(
+            "NPC {} {} removed: {}",
+            npc_name, permanence, reason
+        ))
+        .with_effect(Effect::NpcRemoved {
+            npc_name: npc_name.to_string(),
+            reason: reason.to_string(),
+        })
+    }
+
+    fn resolve_create_location(
+        &self,
+        name: &str,
+        location_type: &str,
+        description: &str,
+        parent_location: Option<&str>,
+        items: &[String],
+        npcs_present: &[String],
+    ) -> Resolution {
+        let parent_text = parent_location
+            .map(|p| format!(" in {}", p))
+            .unwrap_or_default();
+        let items_text = if items.is_empty() {
+            String::new()
+        } else {
+            format!(" with items: {}", items.join(", "))
+        };
+        let npcs_text = if npcs_present.is_empty() {
+            String::new()
+        } else {
+            format!(" featuring NPCs: {}", npcs_present.join(", "))
+        };
+
+        Resolution::new(format!(
+            "New location created: {} ({}){}{}{} - {}",
+            name, location_type, parent_text, items_text, npcs_text, description
+        ))
+        .with_effect(Effect::LocationCreated {
+            name: name.to_string(),
+            location_type: location_type.to_string(),
+        })
+    }
+
+    fn resolve_connect_locations(
+        &self,
+        from_location: &str,
+        to_location: &str,
+        direction: Option<&str>,
+        travel_time_minutes: Option<u32>,
+        bidirectional: bool,
+    ) -> Resolution {
+        let direction_text = direction
+            .map(|d| format!(" ({} direction)", d))
+            .unwrap_or_default();
+        let travel_text = travel_time_minutes
+            .map(|t| format!(", {} minutes travel time", t))
+            .unwrap_or_default();
+        let bidirectional_text = if bidirectional {
+            " (bidirectional)"
+        } else {
+            " (one-way)"
+        };
+
+        Resolution::new(format!(
+            "Locations connected: {} to {}{}{}{}",
+            from_location, to_location, direction_text, travel_text, bidirectional_text
+        ))
+        .with_effect(Effect::LocationsConnected {
+            from: from_location.to_string(),
+            to: to_location.to_string(),
+            direction: direction.map(|s| s.to_string()),
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_update_location(
+        &self,
+        world: &GameWorld,
+        location_name: &str,
+        new_description: Option<&str>,
+        add_items: &[String],
+        remove_items: &[String],
+        add_npcs: &[String],
+        remove_npcs: &[String],
+    ) -> Resolution {
+        // Check if location exists
+        let location_exists = world
+            .known_locations
+            .values()
+            .any(|l| l.name.eq_ignore_ascii_case(location_name))
+            || world
+                .current_location
+                .name
+                .eq_ignore_ascii_case(location_name);
+
+        if !location_exists {
+            return Resolution::new(format!(
+                "Location '{}' not found in the world",
+                location_name
+            ));
+        }
+
+        let mut changes: Vec<String> = Vec::new();
+        if new_description.is_some() {
+            changes.push("description updated".to_string());
+        }
+        if !add_items.is_empty() {
+            changes.push(format!("added items: {}", add_items.join(", ")));
+        }
+        if !remove_items.is_empty() {
+            changes.push(format!("removed items: {}", remove_items.join(", ")));
+        }
+        if !add_npcs.is_empty() {
+            changes.push(format!("NPCs arrived: {}", add_npcs.join(", ")));
+        }
+        if !remove_npcs.is_empty() {
+            changes.push(format!("NPCs left: {}", remove_npcs.join(", ")));
+        }
+
+        let changes_text = if changes.is_empty() {
+            "no changes".to_string()
+        } else {
+            changes.join("; ")
+        };
+
+        Resolution::new(format!(
+            "Location {} updated: {}",
+            location_name, changes_text
+        ))
+        .with_effect(Effect::LocationUpdated {
+            location_name: location_name.to_string(),
+            changes: changes_text,
+        })
+    }
+
+    fn resolve_modify_ability_score(
+        &self,
+        ability: Ability,
+        modifier: i8,
+        source: &str,
+        duration: Option<&str>,
+    ) -> Resolution {
+        let modifier_text = if modifier >= 0 {
+            format!("+{}", modifier)
+        } else {
+            format!("{}", modifier)
+        };
+        let duration_text = duration
+            .map(|d| format!(" for {}", d))
+            .unwrap_or_else(|| " permanently".to_string());
+
+        Resolution::new(format!(
+            "{} modified by {}{} from {}",
+            ability.name(),
+            modifier_text,
+            duration_text,
+            source
+        ))
+        .with_effect(Effect::AbilityScoreModified {
+            ability,
+            modifier,
+            source: source.to_string(),
+        })
+    }
+
+    fn resolve_restore_spell_slot(
+        &self,
+        world: &GameWorld,
+        slot_level: u8,
+        source: &str,
+    ) -> Resolution {
+        if slot_level == 0 || slot_level > 9 {
+            return Resolution::new(format!(
+                "Invalid spell slot level: {}. Must be between 1 and 9.",
+                slot_level
+            ));
+        }
+
+        let new_remaining = world
+            .player_character
+            .spellcasting
+            .as_ref()
+            .map(|sc| {
+                let slot_idx = (slot_level - 1) as usize;
+                sc.spell_slots.slots[slot_idx].available() + 1
+            })
+            .unwrap_or(0);
+
+        Resolution::new(format!(
+            "Level {} spell slot restored by {}",
+            slot_level, source
+        ))
+        .with_effect(Effect::SpellSlotRestored {
+            level: slot_level,
+            new_remaining,
+        })
+    }
+
+    fn resolve_assert_state(
+        &self,
+        world: &GameWorld,
+        entity_name: &str,
+        state_type: StateType,
+        new_value: &str,
+        reason: &str,
+        target_entity: Option<&str>,
+    ) -> Resolution {
+        // Try to find the NPC to get old value
+        let old_value = world
+            .npcs
+            .values()
+            .find(|npc| npc.name.eq_ignore_ascii_case(entity_name))
+            .and_then(|npc| {
+                match state_type {
+                    StateType::Disposition => {
+                        let disp_str = match npc.disposition {
+                            crate::world::Disposition::Hostile => "hostile",
+                            crate::world::Disposition::Unfriendly => "unfriendly",
+                            crate::world::Disposition::Neutral => "neutral",
+                            crate::world::Disposition::Friendly => "friendly",
+                            crate::world::Disposition::Helpful => "helpful",
+                        };
+                        Some(disp_str.to_string())
+                    }
+                    StateType::Location => npc
+                        .location_id
+                        .and_then(|id| world.known_locations.get(&id))
+                        .map(|loc| loc.name.clone()),
+                    StateType::Status => None, // NPC struct doesn't have a status field
+                    _ => None,
+                }
+            });
+
+        let narrative = match state_type {
+            StateType::Disposition => {
+                format!(
+                    "{}'s disposition is now {} (reason: {})",
+                    entity_name, new_value, reason
+                )
+            }
+            StateType::Location => {
+                format!(
+                    "{} is now at {} (reason: {})",
+                    entity_name, new_value, reason
+                )
+            }
+            StateType::Status => {
+                format!(
+                    "{}'s status is now {} (reason: {})",
+                    entity_name, new_value, reason
+                )
+            }
+            StateType::Knowledge => {
+                format!(
+                    "{} now knows: {} (reason: {})",
+                    entity_name, new_value, reason
+                )
+            }
+            StateType::Relationship => {
+                if let Some(target) = target_entity {
+                    format!(
+                        "{}'s relationship with {} is now {} (reason: {})",
+                        entity_name, target, new_value, reason
+                    )
+                } else {
+                    format!(
+                        "{}'s relationship status: {} (reason: {})",
+                        entity_name, new_value, reason
+                    )
+                }
+            }
+        };
+
+        Resolution::new(narrative).with_effect(Effect::StateAsserted {
+            entity_name: entity_name.to_string(),
+            state_type,
+            old_value,
+            new_value: new_value.to_string(),
+            reason: reason.to_string(),
+            target_entity: target_entity.map(|s| s.to_string()),
+        })
+    }
+
+    fn resolve_share_knowledge(
+        &self,
+        knowing_entity: &str,
+        content: &str,
+        source: &str,
+        verification: &str,
+        context: Option<&str>,
+    ) -> Resolution {
+        let narrative = if let Some(ctx) = context {
+            format!(
+                "{} now knows: \"{}\" (from: {}, {}) [{}]",
+                knowing_entity, content, source, verification, ctx
+            )
+        } else {
+            format!(
+                "{} now knows: \"{}\" (from: {}, {})",
+                knowing_entity, content, source, verification
+            )
+        };
+
+        Resolution::new(narrative).with_effect(Effect::KnowledgeShared {
+            knowing_entity: knowing_entity.to_string(),
+            content: content.to_string(),
+            source: source.to_string(),
+            verification: verification.to_string(),
+            context: context.map(|s| s.to_string()),
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_schedule_event(
+        &self,
+        _world: &GameWorld,
+        description: &str,
+        minutes: Option<u32>,
+        hours: Option<u32>,
+        day: Option<u8>,
+        month: Option<u8>,
+        year: Option<i32>,
+        hour: Option<u8>,
+        daily_hour: Option<u8>,
+        daily_minute: Option<u8>,
+        location: Option<&str>,
+        visibility: &str,
+        repeating: bool,
+    ) -> Resolution {
+        // Build the trigger description
+        let trigger_description = if let (Some(dh), Some(dm)) = (daily_hour, daily_minute) {
+            if repeating {
+                format!("daily at {:02}:{:02}", dh, dm)
+            } else {
+                format!("at {:02}:{:02}", dh, dm)
+            }
+        } else if let (Some(d), Some(m), Some(y)) = (day, month, year) {
+            if let Some(h) = hour {
+                format!("on {}/{}/{} at {:02}:00", m, d, y, h)
+            } else {
+                format!("on {}/{}/{}", m, d, y)
+            }
+        } else if minutes.is_some() || hours.is_some() {
+            let total_minutes = minutes.unwrap_or(0) + hours.unwrap_or(0) * 60;
+            if total_minutes < 60 {
+                format!("in {} minutes", total_minutes)
+            } else if total_minutes < 1440 {
+                let h = total_minutes / 60;
+                let m = total_minutes % 60;
+                if m > 0 {
+                    format!("in {} hours and {} minutes", h, m)
+                } else {
+                    format!("in {} hours", h)
+                }
+            } else {
+                let days = total_minutes / 1440;
+                format!("in {} days", days)
+            }
+        } else {
+            "at an unspecified time".to_string()
+        };
+
+        let loc_desc = location.map(|l| format!(" at {}", l)).unwrap_or_default();
+
+        let vis_desc = match visibility {
+            "private" | "secret" => " (private)",
+            "hinted" => " (hinted)",
+            _ => "",
+        };
+
+        let narrative = format!(
+            "Scheduled: \"{}\" {}{}{}",
+            description, trigger_description, loc_desc, vis_desc
+        );
+
+        Resolution::new(narrative).with_effect(Effect::EventScheduled {
+            description: description.to_string(),
+            trigger_description,
+            location: location.map(|s| s.to_string()),
+            visibility: visibility.to_string(),
+        })
+    }
+
+    fn resolve_cancel_event(&self, event_description: &str, reason: &str) -> Resolution {
+        let narrative = format!("Event cancelled: \"{}\" - {}", event_description, reason);
+
+        Resolution::new(narrative).with_effect(Effect::EventCancelled {
+            description: event_description.to_string(),
+            reason: reason.to_string(),
+        })
+    }
 }
 
 impl Default for RulesEngine {
@@ -4025,6 +4982,242 @@ pub fn apply_effect(world: &mut GameWorld, effect: &Effect) {
                 quest.rewards.extend(add_rewards.iter().cloned());
             }
         }
+
+        // World Building effects
+        Effect::NpcCreated { name, location } => {
+            use crate::world::NPC;
+            let mut npc = NPC::new(name.clone());
+
+            // Set location if provided
+            if let Some(loc_name) = location {
+                // Find the location by name
+                if let Some(loc) = world
+                    .known_locations
+                    .values()
+                    .find(|l| l.name.eq_ignore_ascii_case(loc_name))
+                {
+                    npc.location_id = Some(loc.id);
+                }
+            }
+
+            world.npcs.insert(npc.id, npc);
+        }
+
+        Effect::NpcUpdated { npc_name, .. } => {
+            // The actual updates are passed through the Intent
+            // This effect is informational for the narrative/UI
+            // The real state changes would need the full update data
+            // which is handled by the DM agent passing updated NPC data
+            let _ = npc_name; // Suppress unused warning
+        }
+
+        Effect::NpcMoved {
+            npc_name,
+            to_location,
+            ..
+        } => {
+            // Find NPC by name and update their location
+            if let Some(npc) = world
+                .npcs
+                .values_mut()
+                .find(|n| n.name.eq_ignore_ascii_case(npc_name))
+            {
+                // Find the destination location
+                if let Some(loc) = world
+                    .known_locations
+                    .values()
+                    .find(|l| l.name.eq_ignore_ascii_case(to_location))
+                {
+                    npc.location_id = Some(loc.id);
+                } else {
+                    // Location not found, clear location_id
+                    npc.location_id = None;
+                }
+            }
+        }
+
+        Effect::NpcRemoved { npc_name, .. } => {
+            // Remove NPC from the world
+            let npc_id = world
+                .npcs
+                .values()
+                .find(|n| n.name.eq_ignore_ascii_case(npc_name))
+                .map(|n| n.id);
+
+            if let Some(id) = npc_id {
+                world.npcs.remove(&id);
+            }
+        }
+
+        Effect::LocationCreated {
+            name,
+            location_type,
+        } => {
+            use crate::world::{Location, LocationType};
+
+            let loc_type = match location_type.to_lowercase().as_str() {
+                "wilderness" => LocationType::Wilderness,
+                "town" => LocationType::Town,
+                "city" => LocationType::City,
+                "dungeon" => LocationType::Dungeon,
+                "building" => LocationType::Building,
+                "room" => LocationType::Room,
+                "road" => LocationType::Road,
+                "cave" => LocationType::Cave,
+                _ => LocationType::Other,
+            };
+
+            let location = Location::new(name.clone(), loc_type);
+            world.known_locations.insert(location.id, location);
+        }
+
+        Effect::LocationsConnected {
+            from,
+            to,
+            direction,
+        } => {
+            use crate::world::LocationConnection;
+
+            // Find the source and destination locations
+            let from_id = world
+                .known_locations
+                .values()
+                .find(|l| l.name.eq_ignore_ascii_case(from))
+                .map(|l| l.id);
+
+            let to_loc = world
+                .known_locations
+                .values()
+                .find(|l| l.name.eq_ignore_ascii_case(to));
+
+            if let (Some(from_id), Some(to_loc)) = (from_id, to_loc) {
+                let connection = LocationConnection {
+                    destination_id: to_loc.id,
+                    destination_name: to_loc.name.clone(),
+                    direction: direction.clone(),
+                    travel_time_minutes: 0,
+                };
+
+                if let Some(from_loc) = world.known_locations.get_mut(&from_id) {
+                    from_loc.connections.push(connection);
+                }
+            }
+        }
+
+        Effect::LocationUpdated { location_name, .. } => {
+            // The actual updates are passed through the Intent
+            // This effect is informational for the narrative/UI
+            let _ = location_name; // Suppress unused warning
+        }
+
+        Effect::AbilityScoreModified {
+            ability, modifier, ..
+        } => {
+            // Apply ability score modifier
+            let score = match ability {
+                Ability::Strength => &mut world.player_character.ability_scores.strength,
+                Ability::Dexterity => &mut world.player_character.ability_scores.dexterity,
+                Ability::Constitution => &mut world.player_character.ability_scores.constitution,
+                Ability::Intelligence => &mut world.player_character.ability_scores.intelligence,
+                Ability::Wisdom => &mut world.player_character.ability_scores.wisdom,
+                Ability::Charisma => &mut world.player_character.ability_scores.charisma,
+            };
+            *score = (*score as i16 + *modifier as i16).clamp(1, 30) as u8;
+        }
+
+        Effect::SpellSlotRestored { level, .. } => {
+            if let Some(ref mut spellcasting) = world.player_character.spellcasting {
+                if *level >= 1 && *level <= 9 {
+                    let slot_idx = (*level - 1) as usize;
+                    if spellcasting.spell_slots.slots[slot_idx].used > 0 {
+                        spellcasting.spell_slots.slots[slot_idx].used -= 1;
+                    }
+                }
+            }
+        }
+        Effect::StateAsserted {
+            entity_name,
+            state_type,
+            new_value,
+            ..
+        } => {
+            // Find and update the NPC
+            if let Some(npc) = world
+                .npcs
+                .values_mut()
+                .find(|npc| npc.name.eq_ignore_ascii_case(entity_name))
+            {
+                match state_type {
+                    StateType::Disposition => {
+                        // Parse disposition string to enum
+                        let new_disp = match new_value.to_lowercase().as_str() {
+                            "hostile" => crate::world::Disposition::Hostile,
+                            "unfriendly" => crate::world::Disposition::Unfriendly,
+                            "neutral" => crate::world::Disposition::Neutral,
+                            "friendly" => crate::world::Disposition::Friendly,
+                            "helpful" => crate::world::Disposition::Helpful,
+                            _ => return, // Invalid disposition, skip
+                        };
+                        npc.disposition = new_disp;
+                    }
+                    StateType::Location => {
+                        // Find or create the location
+                        // For now, just store as known information since location_id requires a proper Location
+                        if !npc
+                            .known_information
+                            .iter()
+                            .any(|i| i.contains(&format!("at {}", new_value)))
+                        {
+                            npc.known_information
+                                .push(format!("Currently at {}", new_value));
+                        }
+                    }
+                    StateType::Status => {
+                        // NPC struct doesn't have a status field, store as known information
+                        if !npc.known_information.iter().any(|i| i.contains("Status:")) {
+                            npc.known_information.retain(|i| !i.starts_with("Status:"));
+                        }
+                        npc.known_information.push(format!("Status: {}", new_value));
+                    }
+                    StateType::Knowledge => {
+                        // Add to known_information if not already present
+                        if !npc.known_information.contains(new_value) {
+                            npc.known_information.push(new_value.clone());
+                        }
+                    }
+                    StateType::Relationship => {
+                        // Relationships are tracked in story memory, not NPC struct directly
+                        // The effect is recorded for story memory to process
+                    }
+                }
+            }
+        }
+        Effect::KnowledgeShared {
+            knowing_entity,
+            content,
+            ..
+        } => {
+            // Store in NPC known_information if the entity is an NPC
+            if let Some(npc) = world
+                .npcs
+                .values_mut()
+                .find(|npc| npc.name.eq_ignore_ascii_case(knowing_entity))
+            {
+                if !npc.known_information.contains(content) {
+                    npc.known_information.push(content.clone());
+                }
+            }
+            // Note: Full knowledge tracking (verification, source) is handled
+            // in story_memory by the DM agent
+        }
+
+        // Scheduled event effects - these are primarily managed by StoryMemory,
+        // not GameWorld. The actual scheduling is done by the DM agent.
+        Effect::EventScheduled { .. }
+        | Effect::EventCancelled { .. }
+        | Effect::EventTriggered { .. } => {
+            // No GameWorld state changes needed - StoryMemory handles these
+        }
     }
 }
 
@@ -4601,5 +5794,654 @@ mod tests {
             .iter()
             .any(|e| matches!(e, Effect::CharacterDied { .. })));
         assert!(resolution.narrative.contains("DIES"));
+    }
+
+    // ========================================================================
+    // World Building Tool Tests
+    // ========================================================================
+
+    // ------------------------------------------------------------------------
+    // NPC Tools
+    // ------------------------------------------------------------------------
+
+    #[test]
+    fn test_create_npc() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Verify world starts with no NPCs
+        assert!(world.npcs.is_empty());
+
+        let intent = Intent::CreateNpc {
+            name: "Gundren Rockseeker".to_string(),
+            description: "A grizzled dwarf merchant".to_string(),
+            personality: "Gruff but loyal".to_string(),
+            occupation: Some("Merchant".to_string()),
+            disposition: "Friendly".to_string(),
+            location: None,
+            known_information: vec!["Has a map to Wave Echo Cave".to_string()],
+        };
+
+        let resolution = engine.resolve(&world, intent);
+
+        // Verify we got the NpcCreated effect
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::NpcCreated { name, .. } if name == "Gundren Rockseeker")));
+
+        // Apply effects and verify the NPC was added
+        apply_effects(&mut world, &resolution.effects);
+        assert_eq!(world.npcs.len(), 1);
+
+        let npc = world.npcs.values().next().unwrap();
+        assert_eq!(npc.name, "Gundren Rockseeker");
+    }
+
+    #[test]
+    fn test_create_npc_duplicate_detection() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Create an NPC
+        let intent = Intent::CreateNpc {
+            name: "Thorek Ironbrew".to_string(),
+            description: "A grizzled dwarf innkeeper".to_string(),
+            personality: "Gruff but fair".to_string(),
+            occupation: Some("Innkeeper".to_string()),
+            disposition: "Neutral".to_string(),
+            location: Some("The Crossroads Inn".to_string()),
+            known_information: vec![],
+        };
+
+        let resolution = engine.resolve(&world, intent);
+        apply_effects(&mut world, &resolution.effects);
+        assert_eq!(world.npcs.len(), 1);
+
+        // Try to create the same NPC again (should fail with helpful message)
+        let duplicate_intent = Intent::CreateNpc {
+            name: "Thorek Ironbrew".to_string(), // Same name
+            description: "A different description".to_string(),
+            personality: "Different personality".to_string(),
+            occupation: Some("Barkeep".to_string()),
+            disposition: "Friendly".to_string(),
+            location: None,
+            known_information: vec![],
+        };
+
+        let duplicate_resolution = engine.resolve(&world, duplicate_intent);
+
+        // Verify no NpcCreated effect was produced
+        assert!(
+            !duplicate_resolution
+                .effects
+                .iter()
+                .any(|e| matches!(e, Effect::NpcCreated { .. })),
+            "Should not produce NpcCreated effect for duplicate NPC"
+        );
+
+        // Verify the narrative contains the error message
+        assert!(
+            duplicate_resolution
+                .narrative
+                .contains("DUPLICATE NPC ERROR"),
+            "Should contain DUPLICATE NPC ERROR in narrative"
+        );
+        assert!(
+            duplicate_resolution.narrative.contains("update_npc"),
+            "Should suggest using update_npc"
+        );
+
+        // Verify NPC count didn't change
+        apply_effects(&mut world, &duplicate_resolution.effects);
+        assert_eq!(world.npcs.len(), 1, "NPC count should not increase");
+    }
+
+    #[test]
+    fn test_create_npc_duplicate_case_insensitive() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Create an NPC
+        let intent = Intent::CreateNpc {
+            name: "Mira the Smith".to_string(),
+            description: "A skilled blacksmith".to_string(),
+            personality: "Hardworking".to_string(),
+            occupation: Some("Blacksmith".to_string()),
+            disposition: "Neutral".to_string(),
+            location: None,
+            known_information: vec![],
+        };
+
+        let resolution = engine.resolve(&world, intent);
+        apply_effects(&mut world, &resolution.effects);
+
+        // Try with different casing (should still detect as duplicate)
+        let duplicate_intent = Intent::CreateNpc {
+            name: "MIRA THE SMITH".to_string(), // Different case
+            description: "Another description".to_string(),
+            personality: "Different".to_string(),
+            occupation: None,
+            disposition: "Friendly".to_string(),
+            location: None,
+            known_information: vec![],
+        };
+
+        let duplicate_resolution = engine.resolve(&world, duplicate_intent);
+
+        // Should detect as duplicate (case-insensitive)
+        assert!(
+            duplicate_resolution
+                .narrative
+                .contains("DUPLICATE NPC ERROR"),
+            "Should detect case-insensitive duplicate"
+        );
+    }
+
+    #[test]
+    fn test_update_npc_disposition() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // First create an NPC
+        let create_intent = Intent::CreateNpc {
+            name: "Sildar Hallwinter".to_string(),
+            description: "A human warrior".to_string(),
+            personality: "Honorable and brave".to_string(),
+            occupation: Some("Knight".to_string()),
+            disposition: "Neutral".to_string(),
+            location: None,
+            known_information: vec![],
+        };
+        let create_resolution = engine.resolve(&world, create_intent);
+        apply_effects(&mut world, &create_resolution.effects);
+
+        // Now update the NPC's disposition
+        let update_intent = Intent::UpdateNpc {
+            npc_name: "Sildar Hallwinter".to_string(),
+            disposition: Some("Friendly".to_string()),
+            add_information: vec!["Knows about the Redbrands".to_string()],
+            new_description: None,
+            new_personality: None,
+        };
+
+        let update_resolution = engine.resolve(&world, update_intent);
+
+        // Verify we got the NpcUpdated effect
+        assert!(update_resolution.effects.iter().any(|e| matches!(
+            e,
+            Effect::NpcUpdated { npc_name, changes }
+            if npc_name == "Sildar Hallwinter" && changes.contains("disposition changed")
+        )));
+
+        // Verify narrative mentions the update
+        assert!(update_resolution.narrative.contains("Sildar Hallwinter"));
+        assert!(update_resolution.narrative.contains("updated"));
+    }
+
+    #[test]
+    fn test_update_nonexistent_npc() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Try to update an NPC that doesn't exist
+        let update_intent = Intent::UpdateNpc {
+            npc_name: "Ghost NPC".to_string(),
+            disposition: Some("Hostile".to_string()),
+            add_information: vec![],
+            new_description: None,
+            new_personality: None,
+        };
+
+        let resolution = engine.resolve(&world, update_intent);
+
+        // Should have no effects (NPC not found)
+        assert!(resolution.effects.is_empty());
+        assert!(resolution.narrative.contains("not found"));
+    }
+
+    #[test]
+    fn test_move_npc() {
+        use crate::world::{Location, LocationType};
+
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Create a destination location
+        let tavern = Location::new("The Sleeping Giant", LocationType::Building);
+        let tavern_id = tavern.id;
+        world.known_locations.insert(tavern_id, tavern);
+
+        // Create an NPC
+        let create_intent = Intent::CreateNpc {
+            name: "Barthen".to_string(),
+            description: "A shopkeeper".to_string(),
+            personality: "Helpful".to_string(),
+            occupation: Some("Shopkeeper".to_string()),
+            disposition: "Friendly".to_string(),
+            location: None,
+            known_information: vec![],
+        };
+        let create_resolution = engine.resolve(&world, create_intent);
+        apply_effects(&mut world, &create_resolution.effects);
+
+        // Move the NPC to the tavern
+        let move_intent = Intent::MoveNpc {
+            npc_name: "Barthen".to_string(),
+            destination: "The Sleeping Giant".to_string(),
+            reason: Some("Going for a drink".to_string()),
+        };
+
+        let move_resolution = engine.resolve(&world, move_intent);
+
+        // Verify we got the NpcMoved effect
+        assert!(move_resolution.effects.iter().any(|e| matches!(
+            e,
+            Effect::NpcMoved { npc_name, to_location, .. }
+            if npc_name == "Barthen" && to_location == "The Sleeping Giant"
+        )));
+
+        // Apply effects and verify the NPC's location changed
+        apply_effects(&mut world, &move_resolution.effects);
+
+        let npc = world.npcs.values().find(|n| n.name == "Barthen").unwrap();
+        assert_eq!(npc.location_id, Some(tavern_id));
+    }
+
+    #[test]
+    fn test_remove_npc() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Create an NPC
+        let create_intent = Intent::CreateNpc {
+            name: "Glasstaff".to_string(),
+            description: "A villainous wizard".to_string(),
+            personality: "Cunning and cruel".to_string(),
+            occupation: Some("Wizard".to_string()),
+            disposition: "Hostile".to_string(),
+            location: None,
+            known_information: vec![],
+        };
+        let create_resolution = engine.resolve(&world, create_intent);
+        apply_effects(&mut world, &create_resolution.effects);
+
+        assert_eq!(world.npcs.len(), 1);
+
+        // Remove the NPC
+        let remove_intent = Intent::RemoveNpc {
+            npc_name: "Glasstaff".to_string(),
+            reason: "Defeated by the party".to_string(),
+            permanent: true,
+        };
+
+        let remove_resolution = engine.resolve(&world, remove_intent);
+
+        // Verify we got the NpcRemoved effect
+        assert!(remove_resolution.effects.iter().any(|e| matches!(
+            e,
+            Effect::NpcRemoved { npc_name, reason }
+            if npc_name == "Glasstaff" && reason == "Defeated by the party"
+        )));
+
+        // Apply effects and verify the NPC was removed
+        apply_effects(&mut world, &remove_resolution.effects);
+        assert!(world.npcs.is_empty());
+    }
+
+    // ------------------------------------------------------------------------
+    // Location Tools
+    // ------------------------------------------------------------------------
+
+    #[test]
+    fn test_create_location() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // World starts with the starting location
+        let initial_location_count = world.known_locations.len();
+
+        let intent = Intent::CreateLocation {
+            name: "Phandalin".to_string(),
+            location_type: "Town".to_string(),
+            description: "A small frontier town".to_string(),
+            parent_location: None,
+            items: vec!["Notice Board".to_string()],
+            npcs_present: vec![],
+        };
+
+        let resolution = engine.resolve(&world, intent);
+
+        // Verify we got the LocationCreated effect
+        assert!(resolution.effects.iter().any(|e| matches!(
+            e,
+            Effect::LocationCreated { name, location_type }
+            if name == "Phandalin" && location_type == "Town"
+        )));
+
+        // Apply effects and verify the location was added
+        apply_effects(&mut world, &resolution.effects);
+        assert_eq!(world.known_locations.len(), initial_location_count + 1);
+
+        // Find the new location
+        let phandalin = world
+            .known_locations
+            .values()
+            .find(|l| l.name == "Phandalin");
+        assert!(phandalin.is_some());
+    }
+
+    #[test]
+    fn test_connect_locations() {
+        use crate::world::{Location, LocationType};
+
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Create two locations
+        let town = Location::new("Phandalin", LocationType::Town);
+        let town_id = town.id;
+        world.known_locations.insert(town_id, town);
+
+        let cave = Location::new("Wave Echo Cave", LocationType::Cave);
+        let cave_id = cave.id;
+        world.known_locations.insert(cave_id, cave);
+
+        // Connect them
+        let intent = Intent::ConnectLocations {
+            from_location: "Phandalin".to_string(),
+            to_location: "Wave Echo Cave".to_string(),
+            direction: Some("east".to_string()),
+            travel_time_minutes: Some(120),
+            bidirectional: true,
+        };
+
+        let resolution = engine.resolve(&world, intent);
+
+        // Verify we got the LocationsConnected effect
+        assert!(resolution.effects.iter().any(|e| matches!(
+            e,
+            Effect::LocationsConnected { from, to, direction }
+            if from == "Phandalin" && to == "Wave Echo Cave" && direction.as_deref() == Some("east")
+        )));
+
+        // Apply effects and verify the connection was added
+        apply_effects(&mut world, &resolution.effects);
+
+        let phandalin = world.known_locations.get(&town_id).unwrap();
+        assert_eq!(phandalin.connections.len(), 1);
+        assert_eq!(phandalin.connections[0].destination_id, cave_id);
+        assert_eq!(phandalin.connections[0].destination_name, "Wave Echo Cave");
+        assert_eq!(phandalin.connections[0].direction, Some("east".to_string()));
+    }
+
+    #[test]
+    fn test_update_location() {
+        use crate::world::{Location, LocationType};
+
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Create a location
+        let tavern = Location::new("Stonehill Inn", LocationType::Building);
+        world.known_locations.insert(tavern.id, tavern);
+
+        // Update the location
+        let intent = Intent::UpdateLocation {
+            location_name: "Stonehill Inn".to_string(),
+            new_description: Some("A cozy inn with warm hearth".to_string()),
+            add_items: vec!["Ale Barrel".to_string(), "Fireplace".to_string()],
+            remove_items: vec![],
+            add_npcs: vec!["Toblen Stonehill".to_string()],
+            remove_npcs: vec![],
+        };
+
+        let resolution = engine.resolve(&world, intent);
+
+        // Verify we got the LocationUpdated effect
+        assert!(resolution.effects.iter().any(|e| matches!(
+            e,
+            Effect::LocationUpdated { location_name, changes }
+            if location_name == "Stonehill Inn" && changes.contains("description updated")
+        )));
+
+        // Verify narrative mentions the changes
+        assert!(resolution.narrative.contains("Stonehill Inn"));
+        assert!(resolution.narrative.contains("updated"));
+    }
+
+    #[test]
+    fn test_update_nonexistent_location() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Try to update a location that doesn't exist
+        let intent = Intent::UpdateLocation {
+            location_name: "Ghost Town".to_string(),
+            new_description: Some("A spooky place".to_string()),
+            add_items: vec![],
+            remove_items: vec![],
+            add_npcs: vec![],
+            remove_npcs: vec![],
+        };
+
+        let resolution = engine.resolve(&world, intent);
+
+        // Should have no effects (location not found)
+        assert!(resolution.effects.is_empty());
+        assert!(resolution.narrative.contains("not found"));
+    }
+
+    // ------------------------------------------------------------------------
+    // Gameplay Tools
+    // ------------------------------------------------------------------------
+
+    #[test]
+    fn test_modify_ability_score() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Get initial strength
+        let initial_strength = world.player_character.ability_scores.strength;
+
+        let intent = Intent::ModifyAbilityScore {
+            ability: Ability::Strength,
+            modifier: 2,
+            source: "Bull's Strength".to_string(),
+            duration: Some("1 hour".to_string()),
+        };
+
+        let resolution = engine.resolve(&world, intent);
+
+        // Verify we got the AbilityScoreModified effect
+        assert!(resolution.effects.iter().any(|e| matches!(
+            e,
+            Effect::AbilityScoreModified { ability, modifier, source }
+            if *ability == Ability::Strength && *modifier == 2 && source == "Bull's Strength"
+        )));
+
+        // Apply effects and verify the ability score changed
+        apply_effects(&mut world, &resolution.effects);
+        assert_eq!(
+            world.player_character.ability_scores.strength,
+            initial_strength + 2
+        );
+    }
+
+    #[test]
+    fn test_modify_ability_score_negative() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Get initial dexterity
+        let initial_dexterity = world.player_character.ability_scores.dexterity;
+
+        let intent = Intent::ModifyAbilityScore {
+            ability: Ability::Dexterity,
+            modifier: -4,
+            source: "Ray of Enfeeblement".to_string(),
+            duration: Some("1 minute".to_string()),
+        };
+
+        let resolution = engine.resolve(&world, intent);
+
+        // Apply effects and verify the ability score decreased
+        apply_effects(&mut world, &resolution.effects);
+        assert_eq!(
+            world.player_character.ability_scores.dexterity,
+            initial_dexterity - 4
+        );
+    }
+
+    #[test]
+    fn test_modify_ability_score_clamped() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Try to reduce intelligence below 1
+        let intent = Intent::ModifyAbilityScore {
+            ability: Ability::Intelligence,
+            modifier: -20, // Character has 10 INT, this would make it -10
+            source: "Feeblemind".to_string(),
+            duration: None,
+        };
+
+        let resolution = engine.resolve(&world, intent);
+        apply_effects(&mut world, &resolution.effects);
+
+        // Should be clamped to minimum of 1
+        assert_eq!(world.player_character.ability_scores.intelligence, 1);
+    }
+
+    #[test]
+    fn test_restore_spell_slot() {
+        use crate::world::{Ability, SlotInfo, SpellSlots, SpellcastingData};
+
+        let mut character = create_sample_fighter("Roland");
+        // Give the fighter some spellcasting (e.g., Eldritch Knight)
+        character.spellcasting = Some(SpellcastingData {
+            ability: Ability::Intelligence,
+            spells_known: vec!["Shield".to_string()],
+            spells_prepared: vec![],
+            cantrips_known: vec!["Fire Bolt".to_string()],
+            spell_slots: SpellSlots {
+                slots: [
+                    SlotInfo { total: 3, used: 2 }, // Level 1: 1 remaining
+                    SlotInfo { total: 2, used: 2 }, // Level 2: 0 remaining
+                    SlotInfo { total: 0, used: 0 }, // Level 3
+                    SlotInfo { total: 0, used: 0 }, // Level 4
+                    SlotInfo { total: 0, used: 0 }, // Level 5
+                    SlotInfo { total: 0, used: 0 }, // Level 6
+                    SlotInfo { total: 0, used: 0 }, // Level 7
+                    SlotInfo { total: 0, used: 0 }, // Level 8
+                    SlotInfo { total: 0, used: 0 }, // Level 9
+                ],
+            },
+        });
+
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Get initial available slots
+        let initial_level1_used = world
+            .player_character
+            .spellcasting
+            .as_ref()
+            .unwrap()
+            .spell_slots
+            .slots[0]
+            .used;
+
+        let intent = Intent::RestoreSpellSlot {
+            slot_level: 1,
+            source: "Arcane Recovery".to_string(),
+        };
+
+        let resolution = engine.resolve(&world, intent);
+
+        // Verify we got the SpellSlotRestored effect
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::SpellSlotRestored { level: 1, .. })));
+
+        // Apply effects and verify the spell slot was restored
+        apply_effects(&mut world, &resolution.effects);
+
+        let new_level1_used = world
+            .player_character
+            .spellcasting
+            .as_ref()
+            .unwrap()
+            .spell_slots
+            .slots[0]
+            .used;
+
+        assert_eq!(new_level1_used, initial_level1_used - 1);
+    }
+
+    #[test]
+    fn test_restore_spell_slot_invalid_level() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Try to restore an invalid spell slot level
+        let intent = Intent::RestoreSpellSlot {
+            slot_level: 10, // Invalid: max is 9
+            source: "Invalid Source".to_string(),
+        };
+
+        let resolution = engine.resolve(&world, intent);
+
+        // Should have no effects (invalid level)
+        assert!(resolution.effects.is_empty());
+        assert!(resolution.narrative.contains("Invalid"));
+    }
+
+    #[test]
+    fn test_create_npc_with_location() {
+        use crate::world::{Location, LocationType};
+
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test Campaign", character);
+        let engine = RulesEngine::new();
+
+        // Create a location first
+        let tavern = Location::new("The Yawning Portal", LocationType::Building);
+        let tavern_id = tavern.id;
+        world.known_locations.insert(tavern_id, tavern);
+
+        // Create an NPC at that location
+        let intent = Intent::CreateNpc {
+            name: "Durnan".to_string(),
+            description: "A retired adventurer and tavern keeper".to_string(),
+            personality: "Stoic and mysterious".to_string(),
+            occupation: Some("Tavern Keeper".to_string()),
+            disposition: "Neutral".to_string(),
+            location: Some("The Yawning Portal".to_string()),
+            known_information: vec!["Knows about Undermountain".to_string()],
+        };
+
+        let resolution = engine.resolve(&world, intent);
+        apply_effects(&mut world, &resolution.effects);
+
+        // Verify NPC was created at the correct location
+        let npc = world.npcs.values().find(|n| n.name == "Durnan").unwrap();
+        assert_eq!(npc.location_id, Some(tavern_id));
     }
 }

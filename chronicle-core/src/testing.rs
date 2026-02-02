@@ -96,6 +96,7 @@ impl MockDm {
             intents: response.intents,
             effects: all_effects,
             resolutions: all_resolutions,
+            inferred_state_changes: Vec::new(),
         }
     }
 

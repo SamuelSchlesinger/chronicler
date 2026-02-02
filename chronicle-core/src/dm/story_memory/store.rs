@@ -5,7 +5,12 @@ use super::consequence::ConsequenceStatus;
 use super::consequence::{Consequence, ConsequenceId, ConsequenceSeverity};
 use super::entity::{Entity, EntityId, EntityType};
 use super::fact::{FactCategory, FactSource, StoryFact};
+use super::knowledge::{KnowledgeEntry, KnowledgeId, KnowledgeSource, VerificationStatus};
 use super::relationship::{Relationship, RelationshipType};
+use super::scheduled_event::{
+    EventStatus, EventTrigger, EventVisibility, ScheduledEvent, ScheduledEventId,
+};
+use crate::world::GameTime;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -36,6 +41,19 @@ pub struct StoryMemory {
     /// All pending consequences.
     #[serde(default)]
     consequences: Vec<Consequence>,
+    /// Knowledge tracking - what each entity knows.
+    #[serde(default)]
+    knowledge: Vec<KnowledgeEntry>,
+    /// Scheduled events - time-based triggers.
+    #[serde(default)]
+    scheduled_events: Vec<ScheduledEvent>,
+    /// Next scheduled event ID.
+    #[serde(default)]
+    next_event_id: u32,
+    /// Current game time minute count (for duration-based events).
+    /// This is total minutes elapsed since game start.
+    #[serde(default)]
+    current_minute: u64,
     /// Current turn number.
     current_turn: u32,
 }
@@ -448,6 +466,452 @@ impl StoryMemory {
             ));
         }
         context
+    }
+
+    // =========================================================================
+    // Knowledge Management
+    // =========================================================================
+
+    /// Record that an entity knows a piece of information.
+    pub fn share_knowledge(
+        &mut self,
+        knowing_entity: EntityId,
+        content: impl Into<String>,
+        verification_status: VerificationStatus,
+        source: KnowledgeSource,
+        context: Option<String>,
+    ) -> KnowledgeId {
+        let mut entry = KnowledgeEntry::new(
+            knowing_entity,
+            content,
+            verification_status,
+            self.current_turn,
+        )
+        .with_source(source);
+
+        if let Some(ctx) = context {
+            entry = entry.with_context(ctx);
+        }
+
+        let id = entry.id;
+        self.knowledge.push(entry);
+        id
+    }
+
+    /// Transfer knowledge from one entity to another.
+    pub fn transfer_knowledge(
+        &mut self,
+        from_entity: EntityId,
+        to_entity: EntityId,
+        content: impl Into<String>,
+        verification_status: VerificationStatus,
+        context: Option<String>,
+    ) -> KnowledgeId {
+        self.share_knowledge(
+            to_entity,
+            content,
+            verification_status,
+            KnowledgeSource::Entity(from_entity),
+            context,
+        )
+    }
+
+    /// Get all knowledge an entity has.
+    pub fn knowledge_of(&self, entity_id: EntityId) -> Vec<&KnowledgeEntry> {
+        self.knowledge
+            .iter()
+            .filter(|k| k.knowing_entity == entity_id && k.is_current)
+            .collect()
+    }
+
+    /// Query what an entity knows about a specific topic.
+    pub fn query_entity_knowledge(&self, entity_id: EntityId, topic: &str) -> Vec<&KnowledgeEntry> {
+        let topic_lower = topic.to_lowercase();
+        self.knowledge
+            .iter()
+            .filter(|k| {
+                k.knowing_entity == entity_id
+                    && k.is_current
+                    && k.content.to_lowercase().contains(&topic_lower)
+            })
+            .collect()
+    }
+
+    /// Check if an entity knows about a specific topic.
+    pub fn entity_knows_about(&self, entity_id: EntityId, topic: &str) -> bool {
+        !self.query_entity_knowledge(entity_id, topic).is_empty()
+    }
+
+    /// Get knowledge by ID.
+    pub fn get_knowledge(&self, id: KnowledgeId) -> Option<&KnowledgeEntry> {
+        self.knowledge.iter().find(|k| k.id == id)
+    }
+
+    /// Get mutable knowledge by ID.
+    pub fn get_knowledge_mut(&mut self, id: KnowledgeId) -> Option<&mut KnowledgeEntry> {
+        self.knowledge.iter_mut().find(|k| k.id == id)
+    }
+
+    /// Update the verification status of a piece of knowledge.
+    pub fn update_knowledge_verification(
+        &mut self,
+        id: KnowledgeId,
+        new_status: VerificationStatus,
+    ) -> bool {
+        if let Some(entry) = self.get_knowledge_mut(id) {
+            entry.update_verification(new_status);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Mark knowledge as superseded (no longer current).
+    pub fn supersede_knowledge(&mut self, id: KnowledgeId) -> bool {
+        if let Some(entry) = self.get_knowledge_mut(id) {
+            entry.supersede();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Get the total number of knowledge entries.
+    pub fn knowledge_count(&self) -> usize {
+        self.knowledge.len()
+    }
+
+    /// Build a summary of what an entity knows.
+    pub fn build_knowledge_summary(&self, entity_id: EntityId) -> String {
+        let knowledge = self.knowledge_of(entity_id);
+        if knowledge.is_empty() {
+            return String::new();
+        }
+
+        let entity_name = self
+            .get_entity(entity_id)
+            .map(|e| e.name.as_str())
+            .unwrap_or("Unknown entity");
+
+        let mut summary = format!("### What {} knows:\n", entity_name);
+        for entry in knowledge.iter().take(10) {
+            let status_indicator = match entry.verification_status {
+                VerificationStatus::True => "✓",
+                VerificationStatus::False => "✗",
+                VerificationStatus::PartiallyTrue => "~",
+                VerificationStatus::Unknown => "?",
+                VerificationStatus::Outdated => "⌛",
+            };
+            summary.push_str(&format!("- {} {}\n", status_indicator, entry.content));
+        }
+        summary
+    }
+
+    // =========================================================================
+    // Scheduled Events
+    // =========================================================================
+
+    /// Get the current minute count.
+    pub fn current_minute(&self) -> u64 {
+        self.current_minute
+    }
+
+    /// Update the current minute count from game time.
+    /// Call this when time advances in the game.
+    pub fn sync_time(&mut self, game_time: &GameTime) {
+        // Calculate total minutes from game time
+        // Days since year 0, then hours, then minutes
+        let days = (game_time.year as u64 * 12 * 30)  // 12 months, 30 days each
+            + (game_time.month as u64 - 1) * 30
+            + (game_time.day as u64 - 1);
+        let hours = days * 24 + game_time.hour as u64;
+        self.current_minute = hours * 60 + game_time.minute as u64;
+    }
+
+    /// Advance time by a number of minutes.
+    pub fn advance_minutes(&mut self, minutes: u32) {
+        self.current_minute += minutes as u64;
+    }
+
+    /// Schedule a new event.
+    pub fn schedule_event(
+        &mut self,
+        description: impl Into<String>,
+        trigger: EventTrigger,
+    ) -> ScheduledEventId {
+        let id = ScheduledEventId(self.next_event_id);
+        self.next_event_id += 1;
+
+        let event = ScheduledEvent::new(
+            id,
+            description,
+            trigger,
+            self.current_turn,
+            self.current_minute,
+        );
+
+        self.scheduled_events.push(event);
+        id
+    }
+
+    /// Schedule an event to trigger after a duration.
+    pub fn schedule_after_duration(
+        &mut self,
+        description: impl Into<String>,
+        minutes: u32,
+    ) -> ScheduledEventId {
+        let trigger = EventTrigger::AfterDuration {
+            minutes_from_creation: minutes,
+            trigger_at_minute: self.current_minute + minutes as u64,
+        };
+        self.schedule_event(description, trigger)
+    }
+
+    /// Schedule an event at a specific game time.
+    pub fn schedule_at_time(
+        &mut self,
+        description: impl Into<String>,
+        year: i32,
+        month: u8,
+        day: u8,
+        hour: Option<u8>,
+    ) -> ScheduledEventId {
+        let trigger = EventTrigger::AtTime {
+            year,
+            month,
+            day,
+            hour,
+        };
+        self.schedule_event(description, trigger)
+    }
+
+    /// Schedule a daily event at a specific time.
+    pub fn schedule_daily(
+        &mut self,
+        description: impl Into<String>,
+        hour: u8,
+        minute: u8,
+    ) -> ScheduledEventId {
+        let trigger = EventTrigger::TimeOfDay { hour, minute };
+        let id = self.schedule_event(description, trigger);
+
+        // Make it repeating (24 hours = 1440 minutes)
+        if let Some(event) = self.get_scheduled_event_mut(id) {
+            event.repeating = true;
+            event.repeat_interval_minutes = Some(24 * 60);
+        }
+
+        id
+    }
+
+    /// Get a scheduled event by ID.
+    pub fn get_scheduled_event(&self, id: ScheduledEventId) -> Option<&ScheduledEvent> {
+        self.scheduled_events.iter().find(|e| e.id == id)
+    }
+
+    /// Get a mutable scheduled event by ID.
+    pub fn get_scheduled_event_mut(&mut self, id: ScheduledEventId) -> Option<&mut ScheduledEvent> {
+        self.scheduled_events.iter_mut().find(|e| e.id == id)
+    }
+
+    /// Configure an existing event.
+    pub fn configure_event(
+        &mut self,
+        id: ScheduledEventId,
+        location: Option<String>,
+        entities: Option<Vec<String>>,
+        visibility: Option<EventVisibility>,
+        repeating: Option<(bool, Option<u32>)>,
+    ) {
+        if let Some(event) = self.get_scheduled_event_mut(id) {
+            if let Some(loc) = location {
+                event.location = Some(loc);
+            }
+            if let Some(ents) = entities {
+                event.involved_entities = ents;
+            }
+            if let Some(vis) = visibility {
+                event.visibility = vis;
+            }
+            if let Some((rep, interval)) = repeating {
+                event.repeating = rep;
+                event.repeat_interval_minutes = interval;
+            }
+        }
+    }
+
+    /// Check for events that should trigger at the current time.
+    /// Returns triggered events and marks them as triggered.
+    pub fn check_triggered_events(&mut self, game_time: &GameTime) -> Vec<ScheduledEvent> {
+        self.sync_time(game_time);
+
+        let mut triggered = Vec::new();
+        let mut to_reschedule = Vec::new();
+
+        for event in &mut self.scheduled_events {
+            if event.status != EventStatus::Scheduled {
+                continue;
+            }
+
+            let should_trigger = match &event.trigger {
+                EventTrigger::AfterDuration {
+                    trigger_at_minute, ..
+                } => self.current_minute >= *trigger_at_minute,
+                EventTrigger::AtTime {
+                    year,
+                    month,
+                    day,
+                    hour,
+                } => {
+                    game_time.year >= *year
+                        && (game_time.year > *year || game_time.month >= *month)
+                        && (game_time.year > *year
+                            || game_time.month > *month
+                            || game_time.day >= *day)
+                        && hour.is_none_or(|h| {
+                            game_time.year > *year
+                                || game_time.month > *month
+                                || game_time.day > *day
+                                || game_time.hour >= h
+                        })
+                }
+                EventTrigger::TimeOfDay { hour, minute } => {
+                    game_time.hour == *hour && game_time.minute >= *minute
+                }
+            };
+
+            if should_trigger {
+                triggered.push(event.clone());
+                event.trigger();
+
+                // Mark for rescheduling if repeating
+                if event.repeating {
+                    if let Some(interval) = event.repeat_interval_minutes {
+                        to_reschedule.push((event.id, self.current_minute + interval as u64));
+                    }
+                }
+            }
+        }
+
+        // Reschedule repeating events
+        for (id, new_trigger_minute) in to_reschedule {
+            if let Some(event) = self.get_scheduled_event_mut(id) {
+                event.reschedule(new_trigger_minute);
+            }
+        }
+
+        triggered
+    }
+
+    /// Get all pending (not yet triggered) events.
+    pub fn pending_events(&self) -> Vec<&ScheduledEvent> {
+        self.scheduled_events
+            .iter()
+            .filter(|e| e.status == EventStatus::Scheduled)
+            .collect()
+    }
+
+    /// Get pending events visible to the player.
+    pub fn visible_pending_events(&self) -> Vec<&ScheduledEvent> {
+        self.scheduled_events
+            .iter()
+            .filter(|e| {
+                e.status == EventStatus::Scheduled
+                    && matches!(
+                        e.visibility,
+                        EventVisibility::Public | EventVisibility::Hinted
+                    )
+            })
+            .collect()
+    }
+
+    /// Get pending events at a specific location.
+    pub fn events_at_location(&self, location: &str) -> Vec<&ScheduledEvent> {
+        let loc_lower = location.to_lowercase();
+        self.scheduled_events
+            .iter()
+            .filter(|e| {
+                e.status == EventStatus::Scheduled
+                    && e.location
+                        .as_ref()
+                        .is_some_and(|l| l.to_lowercase().contains(&loc_lower))
+            })
+            .collect()
+    }
+
+    /// Cancel a scheduled event.
+    pub fn cancel_event(&mut self, id: ScheduledEventId) -> bool {
+        if let Some(event) = self.get_scheduled_event_mut(id) {
+            event.cancel();
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Get the count of scheduled events.
+    pub fn scheduled_event_count(&self) -> usize {
+        self.scheduled_events.len()
+    }
+
+    /// Build a summary of upcoming events (for DM context).
+    pub fn build_schedule_summary(&self, _game_time: &GameTime) -> String {
+        let visible = self.visible_pending_events();
+        if visible.is_empty() {
+            return String::new();
+        }
+
+        let mut summary = String::from("### Upcoming Events:\n");
+        for event in visible.iter().take(10) {
+            let time_desc = match &event.trigger {
+                EventTrigger::AfterDuration {
+                    trigger_at_minute, ..
+                } => {
+                    let minutes_remaining = trigger_at_minute.saturating_sub(self.current_minute);
+                    if minutes_remaining < 60 {
+                        format!("in {} minutes", minutes_remaining)
+                    } else if minutes_remaining < 1440 {
+                        format!("in {} hours", minutes_remaining / 60)
+                    } else {
+                        format!("in {} days", minutes_remaining / 1440)
+                    }
+                }
+                EventTrigger::AtTime {
+                    year,
+                    month,
+                    day,
+                    hour,
+                } => {
+                    if let Some(h) = hour {
+                        format!("on {}/{}/{} at {}:00", month, day, year, h)
+                    } else {
+                        format!("on {}/{}/{}", month, day, year)
+                    }
+                }
+                EventTrigger::TimeOfDay { hour, minute } => {
+                    format!("daily at {:02}:{:02}", hour, minute)
+                }
+            };
+
+            let loc_desc = event
+                .location
+                .as_ref()
+                .map(|l| format!(" at {}", l))
+                .unwrap_or_default();
+
+            let hint = if event.visibility == EventVisibility::Hinted {
+                " [hinted]"
+            } else {
+                ""
+            };
+
+            summary.push_str(&format!(
+                "- {}{} ({}){}\n",
+                event.description, loc_desc, time_desc, hint
+            ));
+        }
+
+        summary
     }
 
     // =========================================================================

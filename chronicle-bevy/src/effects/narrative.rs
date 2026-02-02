@@ -505,5 +505,183 @@ pub fn narrative_for_effect(effect: &Effect) -> Option<NarrativeOutput> {
             narrative_type: NarrativeType::Combat,
             status: None,
         }),
+
+        // World-building effects
+        Effect::NpcCreated { name, location } => {
+            let loc_text = location
+                .as_ref()
+                .map(|l| format!(" at {l}"))
+                .unwrap_or_default();
+            Some(NarrativeOutput {
+                text: format!("{name} enters the story{loc_text}."),
+                narrative_type: NarrativeType::System,
+                status: None,
+            })
+        }
+
+        Effect::NpcUpdated { npc_name, changes } => Some(NarrativeOutput {
+            text: format!("{npc_name}: {changes}"),
+            narrative_type: NarrativeType::System,
+            status: None,
+        }),
+
+        Effect::NpcMoved {
+            npc_name,
+            to_location,
+            ..
+        } => Some(NarrativeOutput {
+            text: format!("{npc_name} moves to {to_location}."),
+            narrative_type: NarrativeType::System,
+            status: None,
+        }),
+
+        Effect::NpcRemoved { npc_name, reason } => Some(NarrativeOutput {
+            text: format!("{npc_name} leaves the story: {reason}"),
+            narrative_type: NarrativeType::System,
+            status: None,
+        }),
+
+        Effect::LocationCreated {
+            name,
+            location_type,
+        } => Some(NarrativeOutput {
+            text: format!("Discovered new {location_type}: {name}"),
+            narrative_type: NarrativeType::System,
+            status: Some(format!("New location: {name}")),
+        }),
+
+        Effect::LocationsConnected {
+            from,
+            to,
+            direction,
+        } => {
+            let dir_text = direction
+                .as_ref()
+                .map(|d| format!(" ({d})"))
+                .unwrap_or_default();
+            Some(NarrativeOutput {
+                text: format!("Path discovered: {from} ↔ {to}{dir_text}"),
+                narrative_type: NarrativeType::System,
+                status: None,
+            })
+        }
+
+        Effect::LocationUpdated {
+            location_name,
+            changes,
+        } => Some(NarrativeOutput {
+            text: format!("{location_name}: {changes}"),
+            narrative_type: NarrativeType::System,
+            status: None,
+        }),
+
+        Effect::AbilityScoreModified {
+            ability,
+            modifier,
+            source,
+        } => {
+            let sign = if *modifier >= 0 { "+" } else { "" };
+            Some(NarrativeOutput {
+                text: format!("{ability:?} {sign}{modifier} ({source})"),
+                narrative_type: NarrativeType::System,
+                status: Some(format!("{ability:?} modified!")),
+            })
+        }
+
+        Effect::SpellSlotRestored {
+            level,
+            new_remaining,
+        } => Some(NarrativeOutput {
+            text: format!("Level {level} spell slot restored! ({new_remaining} available)"),
+            narrative_type: NarrativeType::System,
+            status: None,
+        }),
+
+        Effect::StateAsserted {
+            entity_name,
+            state_type,
+            new_value,
+            reason,
+            ..
+        } => Some(NarrativeOutput {
+            text: format!(
+                "[{} {} is now {} - {}]",
+                entity_name,
+                state_type.name(),
+                new_value,
+                reason
+            ),
+            narrative_type: NarrativeType::System,
+            status: None,
+        }),
+
+        Effect::KnowledgeShared {
+            knowing_entity,
+            content,
+            source,
+            verification,
+            ..
+        } => {
+            let verification_note = match verification.as_str() {
+                "true" => " (verified)",
+                "false" => " (false information)",
+                "partial" => " (partially true)",
+                "outdated" => " (outdated)",
+                _ => "",
+            };
+            Some(NarrativeOutput {
+                text: format!(
+                    "[{} learns from {}: \"{}\"{}]",
+                    knowing_entity, source, content, verification_note
+                ),
+                narrative_type: NarrativeType::System,
+                status: None,
+            })
+        }
+
+        // Scheduled event effects
+        Effect::EventScheduled {
+            description,
+            trigger_description,
+            location,
+            ..
+        } => {
+            let loc_text = location
+                .as_ref()
+                .map(|l| format!(" at {}", l))
+                .unwrap_or_default();
+            Some(NarrativeOutput {
+                text: format!(
+                    "[Event scheduled: \"{}\" {}{}]",
+                    description, trigger_description, loc_text
+                ),
+                narrative_type: NarrativeType::System,
+                status: None,
+            })
+        }
+
+        Effect::EventCancelled {
+            description,
+            reason,
+        } => Some(NarrativeOutput {
+            text: format!("[Event cancelled: \"{}\" - {}]", description, reason),
+            narrative_type: NarrativeType::System,
+            status: None,
+        }),
+
+        Effect::EventTriggered {
+            description,
+            location,
+        } => {
+            let loc_text = location
+                .as_ref()
+                .map(|l| format!(" at {}", l))
+                .unwrap_or_default();
+            Some(NarrativeOutput {
+                text: format!("[EVENT: {}{}]", description, loc_text),
+                narrative_type: NarrativeType::System,
+                status: Some(description.clone()),
+            })
+        }
     }
 }
