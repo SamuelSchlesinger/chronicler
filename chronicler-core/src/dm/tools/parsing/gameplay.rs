@@ -1,7 +1,8 @@
 //! Gameplay tool parsing - converts gameplay polish tool calls into game Intents.
 
+use super::super::converters::parse_ability;
 use crate::rules::Intent;
-use crate::world::{Ability, GameWorld};
+use crate::world::GameWorld;
 use serde_json::Value;
 
 /// Parse gameplay-related tool calls into Intents.
@@ -46,23 +47,10 @@ pub fn parse_gameplay_tool(name: &str, input: &Value, _world: &GameWorld) -> Opt
     }
 }
 
-/// Parse ability name string into Ability enum.
-fn parse_ability(name: &str) -> Option<Ability> {
-    match name.to_lowercase().as_str() {
-        "strength" | "str" => Some(Ability::Strength),
-        "dexterity" | "dex" => Some(Ability::Dexterity),
-        "constitution" | "con" => Some(Ability::Constitution),
-        "intelligence" | "int" => Some(Ability::Intelligence),
-        "wisdom" | "wis" => Some(Ability::Wisdom),
-        "charisma" | "cha" => Some(Ability::Charisma),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::world::{Character, CharacterClass, ClassLevel, GameWorld};
+    use crate::world::{Ability, Character, CharacterClass, ClassLevel, GameWorld};
     use serde_json::json;
 
     fn create_test_world() -> GameWorld {

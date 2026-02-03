@@ -1577,8 +1577,6 @@ dependencies = [
  "bevy_egui",
  "chronicler-core",
  "dotenvy",
- "once_cell",
- "rand",
  "serde",
  "serde_json",
  "thiserror 2.0.17",
