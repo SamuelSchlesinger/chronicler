@@ -678,3 +678,385 @@ impl RulesEngine {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rules::types::Effect;
+    use crate::world::{create_sample_fighter, CharacterId};
+
+    // ========== Attack Tests ==========
+
+    #[test]
+    fn test_attack_produces_dice_roll() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let target_id = CharacterId::new();
+        let resolution = engine.resolve_attack(
+            &world,
+            world.player_character.id,
+            target_id,
+            "Longsword",
+            Advantage::Normal,
+        );
+
+        // Should have at least one dice roll (attack roll)
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::DiceRolled { .. })));
+
+        // Should have either hit or miss
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::AttackHit { .. } | Effect::AttackMissed { .. })));
+    }
+
+    #[test]
+    fn test_attack_unconscious_cannot_attack() {
+        let mut character = create_sample_fighter("Roland");
+        character.add_condition(Condition::Unconscious, "test");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let target_id = CharacterId::new();
+        let resolution = engine.resolve_attack(
+            &world,
+            world.player_character.id,
+            target_id,
+            "Longsword",
+            Advantage::Normal,
+        );
+
+        assert!(resolution.narrative.contains("unconscious"));
+        assert!(resolution.narrative.contains("cannot attack"));
+        // Should have no effects since attack was prevented
+        assert!(resolution.effects.is_empty());
+    }
+
+    // ========== Damage Tests ==========
+
+    #[test]
+    fn test_damage_reduces_hp() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_damage(
+            &world,
+            world.player_character.id,
+            10,
+            DamageType::Slashing,
+            "sword",
+        );
+
+        assert!(resolution.narrative.contains("takes 10 slashing damage"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::HpChanged { amount: -10, .. })));
+    }
+
+    #[test]
+    fn test_damage_drops_to_zero_unconscious() {
+        let mut character = create_sample_fighter("Roland");
+        character.hit_points.current = 5;
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_damage(
+            &world,
+            world.player_character.id,
+            10,
+            DamageType::Slashing,
+            "sword",
+        );
+
+        assert!(resolution.narrative.contains("UNCONSCIOUS"));
+        assert!(resolution.effects.iter().any(|e| matches!(
+            e,
+            Effect::HpChanged {
+                dropped_to_zero: true,
+                ..
+            }
+        )));
+    }
+
+    #[test]
+    fn test_damage_massive_damage_instant_death() {
+        let mut character = create_sample_fighter("Roland");
+        character.hit_points.current = 10;
+        character.hit_points.maximum = 28;
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        // Damage of 10 + 28 = 38 (drops to 0 AND exceeds max HP)
+        let resolution = engine.resolve_damage(
+            &world,
+            world.player_character.id,
+            38,
+            DamageType::Force,
+            "disintegration",
+        );
+
+        assert!(resolution.narrative.contains("INSTANT DEATH"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::CharacterDied { .. })));
+    }
+
+    #[test]
+    fn test_damage_while_unconscious_causes_death_save_failure() {
+        let mut character = create_sample_fighter("Roland");
+        character.hit_points.current = 0;
+        character.add_condition(Condition::Unconscious, "test");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_damage(
+            &world,
+            world.player_character.id,
+            5,
+            DamageType::Slashing,
+            "sword",
+        );
+
+        assert!(resolution.narrative.contains("death save failure"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::DeathSaveFailure { .. })));
+    }
+
+    // ========== Heal Tests ==========
+
+    #[test]
+    fn test_heal_increases_hp() {
+        let mut character = create_sample_fighter("Roland");
+        character.hit_points.current = 10;
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_heal(&world, world.player_character.id, 15, "Cure Wounds");
+
+        assert!(resolution.narrative.contains("heals"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::HpChanged { amount, .. } if *amount > 0)));
+    }
+
+    #[test]
+    fn test_heal_from_unconscious() {
+        let mut character = create_sample_fighter("Roland");
+        character.hit_points.current = 0;
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_heal(&world, world.player_character.id, 10, "Healing Word");
+
+        assert!(resolution.narrative.contains("regains consciousness"));
+    }
+
+    // ========== Condition Tests ==========
+
+    #[test]
+    fn test_apply_condition() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_apply_condition(
+            &world,
+            world.player_character.id,
+            Condition::Poisoned,
+            "poison dart",
+            Some(10),
+        );
+
+        assert!(resolution.narrative.contains("Poisoned"));
+        assert!(resolution.narrative.contains("10 rounds"));
+        assert!(resolution.effects.iter().any(|e| matches!(
+            e,
+            Effect::ConditionApplied {
+                condition: Condition::Poisoned,
+                duration_rounds: Some(10),
+                ..
+            }
+        )));
+    }
+
+    #[test]
+    fn test_remove_condition() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_remove_condition(
+            &world,
+            world.player_character.id,
+            Condition::Frightened,
+        );
+
+        assert!(resolution.narrative.contains("no longer"));
+        assert!(resolution.effects.iter().any(|e| matches!(
+            e,
+            Effect::ConditionRemoved {
+                condition: Condition::Frightened,
+                ..
+            }
+        )));
+    }
+
+    // ========== Combat Management Tests ==========
+
+    #[test]
+    fn test_start_combat() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let combatants = vec![CombatantInit {
+            id: world.player_character.id,
+            name: "Roland".to_string(),
+            is_player: true,
+            is_ally: true,
+            current_hp: 28,
+            max_hp: 28,
+            armor_class: 18,
+            initiative_modifier: 2,
+        }];
+
+        let resolution = engine.resolve_start_combat(&world, combatants);
+
+        assert!(resolution.narrative.contains("Combat begins"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::CombatStarted)));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::CombatantAdded { .. })));
+    }
+
+    #[test]
+    fn test_end_combat() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_end_combat(&world);
+
+        assert!(resolution.narrative.contains("Combat ends"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::CombatEnded)));
+    }
+
+    #[test]
+    fn test_next_turn_no_combat() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_next_turn(&world);
+
+        assert!(resolution.narrative.contains("No combat"));
+    }
+
+    // ========== Death Save Tests ==========
+
+    #[test]
+    fn test_death_save_not_needed_when_hp_positive() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_death_save(&world, world.player_character.id);
+
+        assert!(resolution.narrative.contains("not dying"));
+        assert!(resolution.effects.is_empty());
+    }
+
+    #[test]
+    fn test_death_save_at_zero_hp() {
+        let mut character = create_sample_fighter("Roland");
+        character.hit_points.current = 0;
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_death_save(&world, world.player_character.id);
+
+        // Should have some effect - either success or failure
+        assert!(resolution.effects.iter().any(|e| matches!(
+            e,
+            Effect::DeathSaveSuccess { .. }
+                | Effect::DeathSaveFailure { .. }
+                | Effect::HpChanged { .. } // Nat 20 heals
+                | Effect::Stabilized { .. }
+                | Effect::CharacterDied { .. }
+        )));
+    }
+
+    // ========== Concentration Check Tests ==========
+
+    #[test]
+    fn test_concentration_check() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_concentration_check(
+            &world,
+            world.player_character.id,
+            10,
+            "Hold Person",
+        );
+
+        assert!(resolution.narrative.contains("Constitution save"));
+        assert!(resolution.narrative.contains("concentration"));
+        assert!(resolution.effects.iter().any(|e| matches!(
+            e,
+            Effect::ConcentrationMaintained { .. } | Effect::ConcentrationBroken { .. }
+        )));
+    }
+
+    #[test]
+    fn test_concentration_check_dc_scales_with_damage() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        // Low damage = DC 10 (minimum)
+        let resolution =
+            engine.resolve_concentration_check(&world, world.player_character.id, 5, "Shield");
+        assert!(resolution.narrative.contains("DC 10"));
+
+        // High damage = DC = damage/2
+        let resolution =
+            engine.resolve_concentration_check(&world, world.player_character.id, 30, "Shield");
+        assert!(resolution.narrative.contains("DC 15"));
+    }
+
+    // ========== Roll Initiative Tests ==========
+
+    #[test]
+    fn test_roll_initiative() {
+        let engine = RulesEngine::new();
+        let char_id = CharacterId::new();
+
+        let resolution = engine.resolve_roll_initiative(char_id, "Roland", 3, true);
+
+        assert!(resolution.narrative.contains("initiative"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::InitiativeRolled { .. })));
+    }
+}

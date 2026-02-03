@@ -12,8 +12,7 @@ use crate::world::{CombatState, GameMode, GameWorld};
 /// Returns a mutable reference to the newly created combat state.
 pub fn start_combat(world: &mut GameWorld) -> &mut CombatState {
     world.mode = GameMode::Combat;
-    world.combat = Some(CombatState::new());
-    world.combat.as_mut().unwrap()
+    world.combat.insert(CombatState::new())
 }
 
 /// End combat, transitioning the game back to exploration mode.
