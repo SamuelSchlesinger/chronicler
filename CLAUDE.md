@@ -53,7 +53,7 @@ cargo run -p chronicler
 
 ```bash
 cargo fmt --all          # Format code
-cargo clippy --workspace # Lint check (must have no warnings)
+cargo clippy --workspace -- -D warnings # Lint check (warnings are errors)
 cargo test --workspace   # All tests must pass
 ```
 

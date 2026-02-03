@@ -67,20 +67,18 @@ pub fn render_onboarding(
                             app_state.play_click();
                             onboarding.current_page += 1;
                         }
-                    } else {
-                        if ui
-                            .button(
-                                egui::RichText::new("Begin Adventure!")
-                                    .color(egui::Color32::from_rgb(100, 200, 100))
-                                    .strong(),
-                            )
-                            .clicked()
-                        {
-                            app_state.play_click();
-                            onboarding.complete();
-                            app_state.overlay = ActiveOverlay::None;
-                            completed = true;
-                        }
+                    } else if ui
+                        .button(
+                            egui::RichText::new("Begin Adventure!")
+                                .color(egui::Color32::from_rgb(100, 200, 100))
+                                .strong(),
+                        )
+                        .clicked()
+                    {
+                        app_state.play_click();
+                        onboarding.complete();
+                        app_state.overlay = ActiveOverlay::None;
+                        completed = true;
                     }
 
                     // Skip link on any page
