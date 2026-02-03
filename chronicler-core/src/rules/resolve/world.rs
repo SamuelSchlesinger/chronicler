@@ -464,3 +464,560 @@ impl RulesEngine {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rules::types::Effect;
+    use crate::world::{
+        create_sample_fighter, CharacterId, Disposition, GameWorld, Location, LocationType, NPC,
+    };
+
+    // ========== Create NPC Tests ==========
+
+    #[test]
+    fn test_create_npc_basic() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_create_npc(
+            &world,
+            "Barkeep",
+            "A gruff middle-aged man",
+            "grumpy but fair",
+            Some("tavern keeper"),
+            "friendly",
+            Some("The Rusty Dragon"),
+            &[],
+        );
+
+        assert!(resolution.narrative.contains("Barkeep"));
+        assert!(resolution.narrative.contains("friendly"));
+        assert!(resolution.narrative.contains("tavern keeper"));
+        assert!(resolution.narrative.contains("The Rusty Dragon"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::NpcCreated { name, .. } if name == "Barkeep")));
+    }
+
+    #[test]
+    fn test_create_npc_duplicate() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test", character);
+
+        // Add an existing NPC
+        let npc_id = CharacterId::new();
+        world.npcs.insert(
+            npc_id,
+            NPC {
+                id: npc_id,
+                name: "Barkeep".to_string(),
+                description: "A gruff man".to_string(),
+                personality: "grumpy".to_string(),
+                occupation: Some("tavern keeper".to_string()),
+                disposition: Disposition::Friendly,
+                location_id: None,
+                known_information: vec![],
+            },
+        );
+
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_create_npc(
+            &world,
+            "Barkeep",
+            "A different description",
+            "different personality",
+            None,
+            "hostile",
+            None,
+            &[],
+        );
+
+        assert!(resolution.narrative.contains("DUPLICATE NPC ERROR"));
+        assert!(resolution.narrative.contains("already exists"));
+        assert!(resolution.effects.is_empty());
+    }
+
+    // ========== Update NPC Tests ==========
+
+    #[test]
+    fn test_update_npc_exists() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test", character);
+
+        let npc_id = CharacterId::new();
+        world.npcs.insert(
+            npc_id,
+            NPC {
+                id: npc_id,
+                name: "Barkeep".to_string(),
+                description: "A gruff man".to_string(),
+                personality: "grumpy".to_string(),
+                occupation: None,
+                disposition: Disposition::Neutral,
+                location_id: None,
+                known_information: vec![],
+            },
+        );
+
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_update_npc(
+            &world,
+            "Barkeep",
+            Some("friendly"),
+            &["The player helped him".to_string()],
+            None,
+            None,
+        );
+
+        assert!(resolution.narrative.contains("Barkeep"));
+        assert!(resolution.narrative.contains("updated"));
+        assert!(resolution.narrative.contains("disposition changed"));
+        assert!(resolution.narrative.contains("new information"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::NpcUpdated { npc_name, .. } if npc_name == "Barkeep")));
+    }
+
+    #[test]
+    fn test_update_npc_not_found() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution =
+            engine.resolve_update_npc(&world, "Unknown NPC", Some("hostile"), &[], None, None);
+
+        assert!(resolution.narrative.contains("not found"));
+        assert!(resolution.effects.is_empty());
+    }
+
+    // ========== Move NPC Tests ==========
+
+    #[test]
+    fn test_move_npc() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test", character);
+
+        let npc_id = CharacterId::new();
+        world.npcs.insert(
+            npc_id,
+            NPC {
+                id: npc_id,
+                name: "Guard".to_string(),
+                description: "A city guard".to_string(),
+                personality: "vigilant".to_string(),
+                occupation: Some("guard".to_string()),
+                disposition: Disposition::Neutral,
+                location_id: None,
+                known_information: vec![],
+            },
+        );
+
+        let engine = RulesEngine::new();
+
+        let resolution =
+            engine.resolve_move_npc(&world, "Guard", "Market Square", Some("patrol route"));
+
+        assert!(resolution.narrative.contains("Guard"));
+        assert!(resolution.narrative.contains("Market Square"));
+        assert!(resolution.narrative.contains("patrol route"));
+        assert!(resolution.effects.iter().any(
+            |e| matches!(e, Effect::NpcMoved { npc_name, to_location, .. } if npc_name == "Guard" && to_location == "Market Square")
+        ));
+    }
+
+    // ========== Remove NPC Tests ==========
+
+    #[test]
+    fn test_remove_npc_permanent() {
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_remove_npc("Villain", "defeated in combat", true);
+
+        assert!(resolution.narrative.contains("Villain"));
+        assert!(resolution.narrative.contains("permanently"));
+        assert!(resolution.narrative.contains("defeated in combat"));
+        assert!(resolution.effects.iter().any(
+            |e| matches!(e, Effect::NpcRemoved { npc_name, reason } if npc_name == "Villain" && reason == "defeated in combat")
+        ));
+    }
+
+    #[test]
+    fn test_remove_npc_temporary() {
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_remove_npc("Merchant", "left town for supplies", false);
+
+        assert!(resolution.narrative.contains("temporarily"));
+    }
+
+    // ========== Create Location Tests ==========
+
+    #[test]
+    fn test_create_location_basic() {
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_create_location(
+            "Dark Cave",
+            "dungeon",
+            "A foreboding cave entrance",
+            None,
+            &[],
+            &[],
+        );
+
+        assert!(resolution.narrative.contains("Dark Cave"));
+        assert!(resolution.narrative.contains("dungeon"));
+        assert!(resolution.narrative.contains("foreboding"));
+        assert!(resolution.effects.iter().any(
+            |e| matches!(e, Effect::LocationCreated { name, location_type } if name == "Dark Cave" && location_type == "dungeon")
+        ));
+    }
+
+    #[test]
+    fn test_create_location_with_parent_and_contents() {
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_create_location(
+            "Throne Room",
+            "room",
+            "An opulent chamber",
+            Some("Castle"),
+            &["Golden Crown".to_string(), "Royal Scepter".to_string()],
+            &["King".to_string(), "Advisor".to_string()],
+        );
+
+        assert!(resolution.narrative.contains("in Castle"));
+        assert!(resolution.narrative.contains("Golden Crown"));
+        assert!(resolution.narrative.contains("King"));
+    }
+
+    // ========== Connect Locations Tests ==========
+
+    #[test]
+    fn test_connect_locations_bidirectional() {
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_connect_locations(
+            "Town Square",
+            "Market District",
+            Some("east"),
+            Some(5),
+            true,
+        );
+
+        assert!(resolution.narrative.contains("Town Square"));
+        assert!(resolution.narrative.contains("Market District"));
+        assert!(resolution.narrative.contains("east direction"));
+        assert!(resolution.narrative.contains("5 minutes"));
+        assert!(resolution.narrative.contains("bidirectional"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::LocationsConnected { from, to, .. }
+                if from == "Town Square" && to == "Market District")));
+    }
+
+    #[test]
+    fn test_connect_locations_one_way() {
+        let engine = RulesEngine::new();
+
+        let resolution =
+            engine.resolve_connect_locations("Cliff Top", "Valley Below", None, None, false);
+
+        assert!(resolution.narrative.contains("one-way"));
+    }
+
+    // ========== Update Location Tests ==========
+
+    #[test]
+    fn test_update_location_exists() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test", character);
+
+        // Add a known location
+        let loc_id = crate::world::LocationId::new();
+        world.known_locations.insert(
+            loc_id,
+            Location {
+                id: loc_id,
+                name: "Tavern".to_string(),
+                location_type: LocationType::Building,
+                description: "A cozy tavern".to_string(),
+                connections: vec![],
+                items: vec![],
+                npcs_present: vec![],
+            },
+        );
+
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_update_location(
+            &world,
+            "Tavern",
+            Some("Now a burned ruin"),
+            &["Ash".to_string()],
+            &[],
+            &[],
+            &["Barkeep".to_string()],
+        );
+
+        assert!(resolution.narrative.contains("Tavern"));
+        assert!(resolution.narrative.contains("updated"));
+        assert!(resolution.narrative.contains("description updated"));
+        assert!(resolution.narrative.contains("added items: Ash"));
+        assert!(resolution.narrative.contains("NPCs left: Barkeep"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::LocationUpdated { location_name, .. } if location_name == "Tavern")));
+    }
+
+    #[test]
+    fn test_update_location_current_location() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test", character);
+        world.current_location.name = "Town Square".to_string();
+
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_update_location(
+            &world,
+            "Town Square",
+            None,
+            &[],
+            &[],
+            &["Guard".to_string()],
+            &[],
+        );
+
+        assert!(resolution.narrative.contains("Town Square"));
+        assert!(resolution.narrative.contains("NPCs arrived: Guard"));
+    }
+
+    #[test]
+    fn test_update_location_not_found() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution =
+            engine.resolve_update_location(&world, "Nonexistent Place", None, &[], &[], &[], &[]);
+
+        assert!(resolution.narrative.contains("not found"));
+        assert!(resolution.effects.is_empty());
+    }
+
+    // ========== Assert State Tests ==========
+
+    #[test]
+    fn test_assert_state_disposition() {
+        let character = create_sample_fighter("Roland");
+        let mut world = GameWorld::new("Test", character);
+
+        let npc_id = CharacterId::new();
+        world.npcs.insert(
+            npc_id,
+            NPC {
+                id: npc_id,
+                name: "Merchant".to_string(),
+                description: "A trader".to_string(),
+                personality: "shrewd".to_string(),
+                occupation: Some("merchant".to_string()),
+                disposition: Disposition::Neutral,
+                location_id: None,
+                known_information: vec![],
+            },
+        );
+
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_assert_state(
+            &world,
+            "Merchant",
+            StateType::Disposition,
+            "friendly",
+            "helped recover stolen goods",
+            None,
+        );
+
+        assert!(resolution.narrative.contains("Merchant"));
+        assert!(resolution.narrative.contains("friendly"));
+        assert!(resolution.narrative.contains("helped recover"));
+        assert!(resolution.effects.iter().any(|e| matches!(
+            e,
+            Effect::StateAsserted {
+                state_type: StateType::Disposition,
+                ..
+            }
+        )));
+    }
+
+    #[test]
+    fn test_assert_state_relationship() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_assert_state(
+            &world,
+            "Duke",
+            StateType::Relationship,
+            "ally",
+            "saved his daughter",
+            Some("Princess"),
+        );
+
+        assert!(resolution.narrative.contains("Duke"));
+        assert!(resolution.narrative.contains("relationship with Princess"));
+        assert!(resolution.narrative.contains("ally"));
+    }
+
+    // ========== Share Knowledge Tests ==========
+
+    #[test]
+    fn test_share_knowledge_basic() {
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_share_knowledge(
+            "Player",
+            "The treasure is hidden in the old mill",
+            "Old Map",
+            "verified",
+            None,
+        );
+
+        assert!(resolution.narrative.contains("Player"));
+        assert!(resolution.narrative.contains("treasure"));
+        assert!(resolution.narrative.contains("Old Map"));
+        assert!(resolution.narrative.contains("verified"));
+        assert!(resolution.effects.iter().any(
+            |e| matches!(e, Effect::KnowledgeShared { knowing_entity, content, .. }
+                if knowing_entity == "Player" && content.contains("treasure"))
+        ));
+    }
+
+    #[test]
+    fn test_share_knowledge_with_context() {
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_share_knowledge(
+            "Party",
+            "The dragon is vulnerable to cold",
+            "Wise Sage",
+            "rumored",
+            Some("from ancient texts"),
+        );
+
+        assert!(resolution.narrative.contains("from ancient texts"));
+    }
+
+    // ========== Schedule Event Tests ==========
+
+    #[test]
+    fn test_schedule_event_in_minutes() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_schedule_event(
+            &world,
+            "Reinforcements arrive",
+            Some(30),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some("Castle Gate"),
+            "public",
+            false,
+        );
+
+        assert!(resolution.narrative.contains("Reinforcements arrive"));
+        assert!(resolution.narrative.contains("in 30 minutes"));
+        assert!(resolution.narrative.contains("Castle Gate"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::EventScheduled { description, .. } if description == "Reinforcements arrive")));
+    }
+
+    #[test]
+    fn test_schedule_event_daily() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_schedule_event(
+            &world,
+            "Guard patrol",
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(6),
+            Some(0),
+            None,
+            "hinted",
+            true,
+        );
+
+        assert!(resolution.narrative.contains("daily at 06:00"));
+        assert!(resolution.narrative.contains("hinted"));
+    }
+
+    #[test]
+    fn test_schedule_event_specific_date() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_schedule_event(
+            &world,
+            "Festival begins",
+            None,
+            None,
+            Some(15),
+            Some(6),
+            Some(1452),
+            Some(12),
+            None,
+            None,
+            Some("Town Square"),
+            "public",
+            false,
+        );
+
+        assert!(resolution.narrative.contains("Festival begins"));
+        assert!(resolution.narrative.contains("on 6/15/1452"));
+        assert!(resolution.narrative.contains("at 12:00"));
+    }
+
+    // ========== Cancel Event Tests ==========
+
+    #[test]
+    fn test_cancel_event() {
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_cancel_event("Merchant caravan arrival", "Road blocked");
+
+        assert!(resolution.narrative.contains("Merchant caravan"));
+        assert!(resolution.narrative.contains("cancelled"));
+        assert!(resolution.narrative.contains("Road blocked"));
+        assert!(resolution.effects.iter().any(
+            |e| matches!(e, Effect::EventCancelled { description, reason }
+                if description == "Merchant caravan arrival" && reason == "Road blocked")
+        ));
+    }
+}
