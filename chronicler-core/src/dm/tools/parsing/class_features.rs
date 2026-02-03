@@ -121,3 +121,310 @@ pub fn parse_class_features_tool(name: &str, input: &Value, world: &GameWorld) -
         _ => None,
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::world::{create_sample_fighter, GameWorld};
+    use serde_json::json;
+
+    fn setup_world() -> GameWorld {
+        let character = create_sample_fighter("Roland");
+        GameWorld::new("Test", character)
+    }
+
+    #[test]
+    fn test_parse_use_rage() {
+        let world = setup_world();
+        let input = json!({});
+
+        let intent = parse_class_features_tool("use_rage", &input, &world);
+
+        assert!(intent.is_some());
+        let intent = intent.unwrap();
+        assert!(matches!(intent, Intent::UseRage { .. }));
+    }
+
+    #[test]
+    fn test_parse_end_rage() {
+        let world = setup_world();
+        let input = json!({
+            "reason": "duration_expired"
+        });
+
+        let intent = parse_class_features_tool("end_rage", &input, &world);
+
+        assert!(intent.is_some());
+        if let Some(Intent::EndRage { reason, .. }) = intent {
+            assert_eq!(reason, "duration_expired");
+        } else {
+            panic!("Expected EndRage intent");
+        }
+    }
+
+    #[test]
+    fn test_parse_end_rage_default_reason() {
+        let world = setup_world();
+        let input = json!({});
+
+        let intent = parse_class_features_tool("end_rage", &input, &world);
+
+        assert!(intent.is_some());
+        if let Some(Intent::EndRage { reason, .. }) = intent {
+            assert_eq!(reason, "voluntary");
+        }
+    }
+
+    #[test]
+    fn test_parse_use_ki() {
+        let world = setup_world();
+        let input = json!({
+            "points": 1,
+            "ability": "flurry_of_blows"
+        });
+
+        let intent = parse_class_features_tool("use_ki", &input, &world);
+
+        assert!(intent.is_some());
+        if let Some(Intent::UseKi {
+            points, ability, ..
+        }) = intent
+        {
+            assert_eq!(points, 1);
+            assert_eq!(ability, "flurry_of_blows");
+        } else {
+            panic!("Expected UseKi intent");
+        }
+    }
+
+    #[test]
+    fn test_parse_use_ki_missing_required_field() {
+        let world = setup_world();
+        let input = json!({
+            "points": 1
+            // Missing "ability"
+        });
+
+        let intent = parse_class_features_tool("use_ki", &input, &world);
+        assert!(intent.is_none());
+    }
+
+    #[test]
+    fn test_parse_use_lay_on_hands() {
+        let world = setup_world();
+        let input = json!({
+            "target": "Wounded Ally",
+            "hp_amount": 10,
+            "cure_disease": true,
+            "neutralize_poison": false
+        });
+
+        let intent = parse_class_features_tool("use_lay_on_hands", &input, &world);
+
+        assert!(intent.is_some());
+        if let Some(Intent::UseLayOnHands {
+            target_name,
+            hp_amount,
+            cure_disease,
+            neutralize_poison,
+            ..
+        }) = intent
+        {
+            assert_eq!(target_name, "Wounded Ally");
+            assert_eq!(hp_amount, 10);
+            assert!(cure_disease);
+            assert!(!neutralize_poison);
+        } else {
+            panic!("Expected UseLayOnHands intent");
+        }
+    }
+
+    #[test]
+    fn test_parse_use_divine_smite() {
+        let world = setup_world();
+        let input = json!({
+            "spell_slot_level": 2,
+            "target_is_undead_or_fiend": true
+        });
+
+        let intent = parse_class_features_tool("use_divine_smite", &input, &world);
+
+        assert!(intent.is_some());
+        if let Some(Intent::UseDivineSmite {
+            spell_slot_level,
+            target_is_undead_or_fiend,
+            ..
+        }) = intent
+        {
+            assert_eq!(spell_slot_level, 2);
+            assert!(target_is_undead_or_fiend);
+        } else {
+            panic!("Expected UseDivineSmite intent");
+        }
+    }
+
+    #[test]
+    fn test_parse_use_wild_shape() {
+        let world = setup_world();
+        let input = json!({
+            "beast_form": "Wolf",
+            "beast_hp": 11,
+            "beast_ac": 13
+        });
+
+        let intent = parse_class_features_tool("use_wild_shape", &input, &world);
+
+        assert!(intent.is_some());
+        if let Some(Intent::UseWildShape {
+            beast_form,
+            beast_hp,
+            beast_ac,
+            ..
+        }) = intent
+        {
+            assert_eq!(beast_form, "Wolf");
+            assert_eq!(beast_hp, 11);
+            assert_eq!(beast_ac, Some(13));
+        } else {
+            panic!("Expected UseWildShape intent");
+        }
+    }
+
+    #[test]
+    fn test_parse_end_wild_shape() {
+        let world = setup_world();
+        let input = json!({
+            "reason": "hp_zero",
+            "excess_damage": 5
+        });
+
+        let intent = parse_class_features_tool("end_wild_shape", &input, &world);
+
+        assert!(intent.is_some());
+        if let Some(Intent::EndWildShape {
+            reason,
+            excess_damage,
+            ..
+        }) = intent
+        {
+            assert_eq!(reason, "hp_zero");
+            assert_eq!(excess_damage, 5);
+        } else {
+            panic!("Expected EndWildShape intent");
+        }
+    }
+
+    #[test]
+    fn test_parse_use_channel_divinity() {
+        let world = setup_world();
+        let input = json!({
+            "option": "Turn Undead",
+            "targets": ["Zombie", "Skeleton"]
+        });
+
+        let intent = parse_class_features_tool("use_channel_divinity", &input, &world);
+
+        assert!(intent.is_some());
+        if let Some(Intent::UseChannelDivinity {
+            option, targets, ..
+        }) = intent
+        {
+            assert_eq!(option, "Turn Undead");
+            assert_eq!(targets.len(), 2);
+            assert!(targets.contains(&"Zombie".to_string()));
+        } else {
+            panic!("Expected UseChannelDivinity intent");
+        }
+    }
+
+    #[test]
+    fn test_parse_use_bardic_inspiration() {
+        let world = setup_world();
+        let input = json!({
+            "target": "Ally",
+            "die_size": "d8"
+        });
+
+        let intent = parse_class_features_tool("use_bardic_inspiration", &input, &world);
+
+        assert!(intent.is_some());
+        if let Some(Intent::UseBardicInspiration {
+            target_name,
+            die_size,
+            ..
+        }) = intent
+        {
+            assert_eq!(target_name, "Ally");
+            assert_eq!(die_size, "d8");
+        } else {
+            panic!("Expected UseBardicInspiration intent");
+        }
+    }
+
+    #[test]
+    fn test_parse_use_action_surge() {
+        let world = setup_world();
+        let input = json!({
+            "action_taken": "Attack action"
+        });
+
+        let intent = parse_class_features_tool("use_action_surge", &input, &world);
+
+        assert!(intent.is_some());
+        if let Some(Intent::UseActionSurge { action_taken, .. }) = intent {
+            assert_eq!(action_taken, "Attack action");
+        } else {
+            panic!("Expected UseActionSurge intent");
+        }
+    }
+
+    #[test]
+    fn test_parse_use_second_wind() {
+        let world = setup_world();
+        let input = json!({});
+
+        let intent = parse_class_features_tool("use_second_wind", &input, &world);
+
+        assert!(intent.is_some());
+        assert!(matches!(intent, Some(Intent::UseSecondWind { .. })));
+    }
+
+    #[test]
+    fn test_parse_use_sorcery_points() {
+        let world = setup_world();
+        let input = json!({
+            "points": 2,
+            "metamagic": "quickened",
+            "spell_name": "Fireball",
+            "slot_level": 3
+        });
+
+        let intent = parse_class_features_tool("use_sorcery_points", &input, &world);
+
+        assert!(intent.is_some());
+        if let Some(Intent::UseSorceryPoints {
+            points,
+            metamagic,
+            spell_name,
+            slot_level,
+            ..
+        }) = intent
+        {
+            assert_eq!(points, 2);
+            assert_eq!(metamagic, "quickened");
+            assert_eq!(spell_name, Some("Fireball".to_string()));
+            assert_eq!(slot_level, Some(3));
+        } else {
+            panic!("Expected UseSorceryPoints intent");
+        }
+    }
+
+    #[test]
+    fn test_parse_unknown_tool() {
+        let world = setup_world();
+        let input = json!({});
+
+        let intent = parse_class_features_tool("unknown_tool", &input, &world);
+        assert!(intent.is_none());
+    }
+}
