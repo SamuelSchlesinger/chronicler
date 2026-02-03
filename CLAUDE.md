@@ -69,6 +69,53 @@ Install the pre-commit hook to automatically run these checks:
 
 This will block commits that fail formatting, clippy, or tests.
 
+## Testing Strategy
+
+### Philosophy
+
+- **Unit tests**: Deterministic rules engine tests with real assertions (run in CI)
+- **Integration tests**: API connectivity tests requiring `ANTHROPIC_API_KEY` (marked `#[ignore]`, run manually)
+
+The AI DM's interpretation of player input is non-deterministic and cannot be reliably unit tested. We test the rules engine directly instead.
+
+### Running Tests
+
+```bash
+cargo test --workspace                    # Run all unit tests
+cargo test -p chronicler-core test_name   # Run specific test
+cargo tarpaulin --workspace               # Generate coverage report
+```
+
+### Coverage Status
+
+Current coverage: **61.39%** (10803/17598 lines)
+
+**Well-covered modules (>80%):**
+
+| File | Coverage |
+|------|----------|
+| `rules/resolve/class_features.rs` | 91.30% |
+| `rules/resolve/inventory.rs` | 86.92% |
+| `rules/resolve/quests.rs` | 100% |
+| `rules/resolve/checks.rs` | 88.06% |
+| `rules/resolve/world.rs` | 84.15% |
+| `rules/helpers.rs` | 100% |
+| `dm/tools/parsing/class_features.rs` | 100% |
+| `dm/tools/parsing/inventory.rs` | 100% |
+| Spell definitions | 100% |
+| Items database | 98% |
+
+**Needs improvement:**
+
+| File | Coverage | Priority |
+|------|----------|----------|
+| `dm/agent.rs` | 18% | Medium - core DM logic |
+| `session.rs` | 11% | Medium - public API |
+| `rules/effects.rs` | 35% | Medium - effect application |
+| `rules/engine.rs` | 31% | Medium - intent resolution |
+| `headless.rs` | 23% | Low - integration API |
+| `dm/tools/parsing/world.rs` | 0% | Low - world-building parsing |
+
 ## Workspace Structure
 
 This workspace contains 3 crates:
