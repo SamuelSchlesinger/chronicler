@@ -164,7 +164,12 @@ impl GameSession {
         let starting_location = if config.starting_location.is_empty() {
             generate_starting_location(&character)
                 .await
-                .unwrap_or_else(|_| "a crossroads where several paths meet".to_string())
+                .unwrap_or_else(|e| {
+                    eprintln!(
+                    "Warning: Failed to generate starting location: {e}. Using fallback location."
+                );
+                    "a crossroads where several paths meet".to_string()
+                })
         } else {
             config.starting_location
         };
@@ -199,7 +204,12 @@ impl GameSession {
         let starting_location = if config.starting_location.is_empty() {
             generate_starting_location(&character)
                 .await
-                .unwrap_or_else(|_| "a crossroads where several paths meet".to_string())
+                .unwrap_or_else(|e| {
+                    eprintln!(
+                    "Warning: Failed to generate starting location: {e}. Using fallback location."
+                );
+                    "a crossroads where several paths meet".to_string()
+                })
         } else {
             config.starting_location
         };
@@ -461,7 +471,12 @@ Respond with ONLY the location description, no preamble."#,
                 None
             }
         })
-        .unwrap_or_else(|| "a mysterious crossroads".to_string());
+        .unwrap_or_else(|| {
+            eprintln!(
+                "Warning: No text content in starting location response. Using fallback location."
+            );
+            "a mysterious crossroads".to_string()
+        });
 
     Ok(location)
 }
