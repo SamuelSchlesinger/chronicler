@@ -532,6 +532,18 @@ This gives cinematic pacing—player acts, sees consequences unfold, acts again.
 
 The world building system enables the AI to create and manage a persistent, evolving game world through specialized tools and memory systems.
 
+### Multi-Model Architecture
+
+The system uses different models for different tasks:
+
+| Task | Model | Purpose |
+|------|-------|---------|
+| **Narrative generation** | Sonnet | Creative, expressive storytelling |
+| **Relevance checking** | Haiku | Fast semantic matching (runs every turn) |
+| **State inference** | Haiku | Detect implied state changes from narrative |
+
+This keeps costs low (~$0.01/turn) while maintaining narrative quality. Haiku calls add minimal latency (~200-300ms) compared to the main Sonnet call (~2-4s).
+
 ### World Building Flow
 
 ```
@@ -541,7 +553,7 @@ The world building system enables the AI to create and manage a persistent, evol
        │
        ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                    RELEVANCE CHECKER (Fast Model)                        │
+│                    RELEVANCE CHECKER (Haiku - fast, cheap)               │
 │  • Checks registered consequences against player action                  │
 │  • Surfaces relevant NPCs/locations not explicitly mentioned             │
 │  • Retrieves key facts from story memory                                 │
@@ -556,7 +568,7 @@ The world building system enables the AI to create and manage a persistent, evol
                                        │
                                        ▼
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                      CLAUDE API (Tool Loop)                              │
+│                 NARRATIVE GENERATION (Sonnet - creative)                 │
 │           Generates narrative + tool calls (streaming)                   │
 └──────────────────────────────────────┬───────────────────────────────────┘
                                        │
@@ -579,6 +591,14 @@ The world building system enables the AI to create and manage a persistent, evol
 │  npcs, locations,   │   │  facts, relations,  │   │  (back to Claude    │
 │  quests, log        │   │  consequences       │   │   for next turn)    │
 └─────────────────────┘   └─────────────────────┘   └─────────────────────┘
+                                       │
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────┐
+│                    STATE INFERENCE (Haiku - fast, cheap)                 │
+│  • Analyzes narrative for implied state changes                          │
+│  • "She smiles warmly" → disposition=friendly (confidence: 0.9)          │
+│  • High-confidence changes (>0.8) applied automatically                  │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### World Building Tools

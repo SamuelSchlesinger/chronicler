@@ -108,6 +108,47 @@ This enables:
 - **Ticking clocks** — ignore the cultists too long, consequences arrive
 - **Secrets revealed** — the right question to the right person unlocks hidden information
 
+### State Inference
+
+There's a gap between what the DM *writes* and what it *records*. The narrative might say:
+
+> "Mira's eyes widen with gratitude. 'You saved my shop! I won't forget this,' she says, clasping your hands warmly."
+
+But did the DM call `update_npc(disposition="friendly")`? Often not. The narrative implies a state change that never made it to the game state.
+
+After each DM response, a fast model (Haiku) analyzes the text and infers implied changes:
+
+```
+Narrative: "Captain Voss storms out, muttering about incompetent adventurers"
+
+Inferred changes:
+- entity: "Captain Voss"
+  state_type: "location"
+  new_value: "outside"
+  confidence: 0.85
+
+- entity: "Captain Voss"
+  state_type: "disposition"
+  new_value: "hostile"
+  confidence: 0.92
+```
+
+Changes above the confidence threshold (default 0.8) are applied automatically. This closes the narrative-state gap without requiring the main model to be perfectly disciplined about tool usage.
+
+## Multi-Model Architecture
+
+Not every task needs the same model. The system uses different models for different jobs:
+
+| Task | Model | Latency | Cost | Why |
+|------|-------|---------|------|-----|
+| Narrative generation | Sonnet | ~2-4s | $$ | Needs creativity, voice, complex reasoning |
+| Relevance checking | Haiku | ~200ms | ¢ | Simple classification, runs every turn |
+| State inference | Haiku | ~300ms | ¢ | Structured extraction from text |
+
+This architecture keeps the experience responsive and costs manageable. The relevance check and state inference add minimal latency because they use the fastest available model, while the creative work gets the full power of Sonnet.
+
+The relevance checker runs *before* the main model sees the input — it determines which consequences to inject into the context. The state inferrer runs *after* — it cleans up any implied changes the main model forgot to record.
+
 ### The Flow
 
 Here's what happens every time you act:
@@ -115,20 +156,34 @@ Here's what happens every time you act:
 ```
 Your Action
     ↓
-Relevance Checker ← "Does this trigger any registered consequences?"
+┌─────────────────────────────────────────────────────────┐
+│ RELEVANCE CHECK (Haiku - fast, cheap)                   │
+│ "Does this trigger any registered consequences?"        │
+│ Semantic matching against pending triggers              │
+└─────────────────────────────────────────────────────────┘
     ↓
-System Prompt Built ← Base DM + Rules + Your Character + Relevant Memories
+System Prompt Built ← Base DM + Rules + Character + Relevant Memories + Triggered Consequences
     ↓
-AI Generates Response ← Narrative text + Tool calls
+┌─────────────────────────────────────────────────────────┐
+│ NARRATIVE GENERATION (Sonnet - creative, expressive)    │
+│ DM generates response with tool calls                   │
+│ Streaming text + real-time effect callbacks             │
+└─────────────────────────────────────────────────────────┘
     ↓
 Tools Execute ← Dice rolls, damage, NPC creation, fact storage
     ↓
 World Updates ← Game state changes persist
     ↓
+┌─────────────────────────────────────────────────────────┐
+│ STATE INFERENCE (Haiku - fast, cheap)                   │
+│ "Did the narrative imply state changes?"                │
+│ High-confidence changes (>0.8) applied automatically    │
+└─────────────────────────────────────────────────────────┘
+    ↓
 You See the Result
 ```
 
-The AI handles creativity. The rules engine handles consistency. The memory system handles persistence. Together, they create something that feels like a real campaign.
+Three models work together: Haiku handles the bookkeeping (relevance, inference), Sonnet handles the storytelling. The rules engine handles consistency. The memory system handles persistence.
 
 ## Key Design Decisions
 
