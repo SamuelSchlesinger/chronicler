@@ -283,3 +283,233 @@ impl RulesEngine {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rules::types::Effect;
+    use crate::world::{create_sample_cleric, create_sample_fighter, GameWorld};
+
+    // ========== Cast Spell Tests ==========
+
+    #[test]
+    fn test_cast_spell_unknown_spell() {
+        let character = create_sample_cleric("Sera");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_cast_spell(
+            &world,
+            world.player_character.id,
+            "Nonexistent Spell",
+            1,
+            &[],
+        );
+
+        assert!(resolution.narrative.contains("Unknown spell"));
+    }
+
+    #[test]
+    fn test_cast_cantrip_no_slot_required() {
+        let character = create_sample_cleric("Sera");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_cast_spell(
+            &world,
+            world.player_character.id,
+            "Sacred Flame",
+            0,
+            &["Goblin".to_string()],
+        );
+
+        assert!(resolution.narrative.contains("casts Sacred Flame"));
+        // Cantrips don't produce SpellSlotUsed effect
+        assert!(!resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::SpellSlotUsed { .. })));
+    }
+
+    #[test]
+    fn test_cast_spell_slot_too_low() {
+        let character = create_sample_cleric("Sera");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        // Try to cast a level 2 spell with a level 1 slot
+        let resolution = engine.resolve_cast_spell(
+            &world,
+            world.player_character.id,
+            "Spiritual Weapon",
+            1,
+            &[],
+        );
+
+        assert!(resolution.narrative.contains("Cannot cast"));
+        assert!(resolution.narrative.contains("requires at least level"));
+    }
+
+    #[test]
+    fn test_cast_spell_no_spellcasting_ability() {
+        let character = create_sample_fighter("Roland");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_cast_spell(
+            &world,
+            world.player_character.id,
+            "Cure Wounds",
+            1,
+            &["Roland".to_string()],
+        );
+
+        assert!(resolution.narrative.contains("doesn't have spellcasting"));
+    }
+
+    #[test]
+    fn test_cast_spell_consumes_slot() {
+        let character = create_sample_cleric("Sera");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_cast_spell(
+            &world,
+            world.player_character.id,
+            "Cure Wounds",
+            1,
+            &["Ally".to_string()],
+        );
+
+        assert!(resolution.narrative.contains("casts Cure Wounds"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::SpellSlotUsed { level: 1, .. })));
+    }
+
+    #[test]
+    fn test_cast_spell_upcast() {
+        let mut character = create_sample_cleric("Sera");
+        // Add a level 2 slot
+        if let Some(ref mut spellcasting) = character.spellcasting {
+            spellcasting.spell_slots.slots[1] = crate::world::SlotInfo { total: 2, used: 0 };
+        }
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_cast_spell(
+            &world,
+            world.player_character.id,
+            "Cure Wounds",
+            2,
+            &["Ally".to_string()],
+        );
+
+        assert!(resolution.narrative.contains("upcast at level 2"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::SpellSlotUsed { level: 2, .. })));
+    }
+
+    #[test]
+    fn test_cast_spell_concentration() {
+        let character = create_sample_cleric("Sera");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        // Bless is a concentration spell
+        let resolution = engine.resolve_cast_spell(
+            &world,
+            world.player_character.id,
+            "Bless",
+            1,
+            &["Ally".to_string()],
+        );
+
+        assert!(resolution.narrative.contains("Concentration"));
+    }
+
+    #[test]
+    fn test_cast_healing_spell() {
+        let character = create_sample_cleric("Sera");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_cast_spell(
+            &world,
+            world.player_character.id,
+            "Cure Wounds",
+            1,
+            &["Roland".to_string()],
+        );
+
+        assert!(resolution.narrative.contains("heals"));
+        assert!(resolution.narrative.contains("Roland"));
+        assert!(resolution.effects.iter().any(
+            |e| matches!(e, Effect::DiceRolled { purpose, .. } if purpose.contains("healing"))
+        ));
+    }
+
+    #[test]
+    fn test_cast_spell_saving_throw() {
+        let character = create_sample_cleric("Sera");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        // Sacred Flame requires a Dex save
+        let resolution = engine.resolve_cast_spell(
+            &world,
+            world.player_character.id,
+            "Sacred Flame",
+            0,
+            &["Goblin".to_string()],
+        );
+
+        assert!(resolution.narrative.contains("saving throw"));
+        assert!(resolution.narrative.contains("DC"));
+    }
+
+    // ========== Restore Spell Slot Tests ==========
+
+    #[test]
+    fn test_restore_spell_slot_valid() {
+        let character = create_sample_cleric("Sera");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_restore_spell_slot(&world, 1, "Arcane Recovery");
+
+        assert!(resolution.narrative.contains("Level 1 spell slot restored"));
+        assert!(resolution.narrative.contains("Arcane Recovery"));
+        assert!(resolution
+            .effects
+            .iter()
+            .any(|e| matches!(e, Effect::SpellSlotRestored { level: 1, .. })));
+    }
+
+    #[test]
+    fn test_restore_spell_slot_invalid_level_zero() {
+        let character = create_sample_cleric("Sera");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_restore_spell_slot(&world, 0, "test");
+
+        assert!(resolution.narrative.contains("Invalid spell slot level"));
+        assert!(resolution.effects.is_empty());
+    }
+
+    #[test]
+    fn test_restore_spell_slot_invalid_level_too_high() {
+        let character = create_sample_cleric("Sera");
+        let world = GameWorld::new("Test", character);
+        let engine = RulesEngine::new();
+
+        let resolution = engine.resolve_restore_spell_slot(&world, 10, "test");
+
+        assert!(resolution.narrative.contains("Invalid spell slot level"));
+        assert!(resolution.effects.is_empty());
+    }
+}
