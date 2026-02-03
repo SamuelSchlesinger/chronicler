@@ -124,3 +124,159 @@ impl Default for AbilityScores {
         Self::new(10, 10, 10, 10, 10, 10)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ability_abbreviations() {
+        assert_eq!(Ability::Strength.abbreviation(), "STR");
+        assert_eq!(Ability::Dexterity.abbreviation(), "DEX");
+        assert_eq!(Ability::Constitution.abbreviation(), "CON");
+        assert_eq!(Ability::Intelligence.abbreviation(), "INT");
+        assert_eq!(Ability::Wisdom.abbreviation(), "WIS");
+        assert_eq!(Ability::Charisma.abbreviation(), "CHA");
+    }
+
+    #[test]
+    fn test_ability_names() {
+        assert_eq!(Ability::Strength.name(), "Strength");
+        assert_eq!(Ability::Dexterity.name(), "Dexterity");
+        assert_eq!(Ability::Constitution.name(), "Constitution");
+        assert_eq!(Ability::Intelligence.name(), "Intelligence");
+        assert_eq!(Ability::Wisdom.name(), "Wisdom");
+        assert_eq!(Ability::Charisma.name(), "Charisma");
+    }
+
+    #[test]
+    fn test_ability_all() {
+        let all = Ability::all();
+        assert_eq!(all.len(), 6);
+        assert!(all.contains(&Ability::Strength));
+        assert!(all.contains(&Ability::Charisma));
+    }
+
+    #[test]
+    fn test_ability_display() {
+        assert_eq!(format!("{}", Ability::Strength), "STR");
+        assert_eq!(format!("{}", Ability::Charisma), "CHA");
+    }
+
+    #[test]
+    fn test_ability_scores_new() {
+        let scores = AbilityScores::new(15, 14, 13, 12, 10, 8);
+        assert_eq!(scores.strength, 15);
+        assert_eq!(scores.dexterity, 14);
+        assert_eq!(scores.constitution, 13);
+        assert_eq!(scores.intelligence, 12);
+        assert_eq!(scores.wisdom, 10);
+        assert_eq!(scores.charisma, 8);
+    }
+
+    #[test]
+    fn test_ability_scores_standard_array() {
+        let scores = AbilityScores::standard_array();
+        assert_eq!(scores.strength, 15);
+        assert_eq!(scores.dexterity, 14);
+        assert_eq!(scores.constitution, 13);
+        assert_eq!(scores.intelligence, 12);
+        assert_eq!(scores.wisdom, 10);
+        assert_eq!(scores.charisma, 8);
+    }
+
+    #[test]
+    fn test_ability_scores_default() {
+        let scores = AbilityScores::default();
+        assert_eq!(scores.strength, 10);
+        assert_eq!(scores.dexterity, 10);
+        assert_eq!(scores.constitution, 10);
+        assert_eq!(scores.intelligence, 10);
+        assert_eq!(scores.wisdom, 10);
+        assert_eq!(scores.charisma, 10);
+    }
+
+    #[test]
+    fn test_ability_scores_get() {
+        let scores = AbilityScores::new(18, 16, 14, 12, 10, 8);
+        assert_eq!(scores.get(Ability::Strength), 18);
+        assert_eq!(scores.get(Ability::Dexterity), 16);
+        assert_eq!(scores.get(Ability::Constitution), 14);
+        assert_eq!(scores.get(Ability::Intelligence), 12);
+        assert_eq!(scores.get(Ability::Wisdom), 10);
+        assert_eq!(scores.get(Ability::Charisma), 8);
+    }
+
+    #[test]
+    fn test_ability_scores_set() {
+        let mut scores = AbilityScores::default();
+        scores.set(Ability::Strength, 20);
+        scores.set(Ability::Charisma, 5);
+        assert_eq!(scores.get(Ability::Strength), 20);
+        assert_eq!(scores.get(Ability::Charisma), 5);
+    }
+
+    #[test]
+    fn test_modifier_positive() {
+        let scores = AbilityScores::new(18, 16, 14, 12, 11, 10);
+        assert_eq!(scores.modifier(Ability::Strength), 4); // 18 -> +4
+        assert_eq!(scores.modifier(Ability::Dexterity), 3); // 16 -> +3
+        assert_eq!(scores.modifier(Ability::Constitution), 2); // 14 -> +2
+        assert_eq!(scores.modifier(Ability::Intelligence), 1); // 12 -> +1
+        assert_eq!(scores.modifier(Ability::Wisdom), 0); // 11 -> +0
+        assert_eq!(scores.modifier(Ability::Charisma), 0); // 10 -> +0
+    }
+
+    #[test]
+    fn test_modifier_negative() {
+        let scores = AbilityScores::new(9, 8, 7, 6, 4, 1);
+        assert_eq!(scores.modifier(Ability::Strength), -1); // 9 -> -1
+        assert_eq!(scores.modifier(Ability::Dexterity), -1); // 8 -> -1
+        assert_eq!(scores.modifier(Ability::Constitution), -2); // 7 -> -2
+        assert_eq!(scores.modifier(Ability::Intelligence), -2); // 6 -> -2
+        assert_eq!(scores.modifier(Ability::Wisdom), -3); // 4 -> -3
+        assert_eq!(scores.modifier(Ability::Charisma), -5); // 1 -> -5
+    }
+
+    #[test]
+    fn test_modifier_boundary_values() {
+        // Test important D&D boundaries
+        let mut scores = AbilityScores::default();
+
+        // Score of 1 (minimum for living creatures)
+        scores.set(Ability::Strength, 1);
+        assert_eq!(scores.modifier(Ability::Strength), -5);
+
+        // Score of 10-11 (average, +0 modifier)
+        scores.set(Ability::Strength, 10);
+        assert_eq!(scores.modifier(Ability::Strength), 0);
+        scores.set(Ability::Strength, 11);
+        assert_eq!(scores.modifier(Ability::Strength), 0);
+
+        // Score of 20 (typical maximum for PCs)
+        scores.set(Ability::Strength, 20);
+        assert_eq!(scores.modifier(Ability::Strength), 5);
+
+        // Score of 30 (deity-level)
+        scores.set(Ability::Strength, 30);
+        assert_eq!(scores.modifier(Ability::Strength), 10);
+    }
+
+    #[test]
+    fn test_modifier_formula_edge_cases() {
+        // Verify the floor division formula: (score - 10) / 2 rounded down
+        let mut scores = AbilityScores::default();
+
+        // Even scores
+        scores.set(Ability::Strength, 2);
+        assert_eq!(scores.modifier(Ability::Strength), -4);
+        scores.set(Ability::Strength, 4);
+        assert_eq!(scores.modifier(Ability::Strength), -3);
+
+        // Odd scores (should round down)
+        scores.set(Ability::Strength, 3);
+        assert_eq!(scores.modifier(Ability::Strength), -4); // (3-10)/2 = -3.5 -> -4
+        scores.set(Ability::Strength, 5);
+        assert_eq!(scores.modifier(Ability::Strength), -3); // (5-10)/2 = -2.5 -> -3
+    }
+}
